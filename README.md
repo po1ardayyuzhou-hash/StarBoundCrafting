@@ -96,18 +96,3 @@ Starbound（星界边境）1.4.4 全量合成表，**单文件网页**，支持�
 **安装**：把 `zzz_FullTranslateCN` 文件夹复制到 `Starbound/mods/` 下，重启游戏即可。mod 名带 `zzz_` 前缀，确保补丁在其他汉化之后加载、优先级最高。
 
 **翻译说明**：专有名词先按统一术语表替换（如 Ariostone → 奥里石、Titancorp → 泰坦重工、Verrostin → 维罗斯廷），再交由 DeepL 翻译，确保名称与描述用词一致。属检索向译文，非官方译名。
-
----
-
-## 发布到 Steam 创意工坊
-
-`FullTranslateCN.pak` 是打包好的模组（2817 个补丁，0.82 MB），直接丢进 `Starbound/mods/` 就能用，也可作为创意工坊发布物。
-
-发布流程（官方 Mod Uploader Tool）：
-
-1. Steam 库 → 右键 Starbound → 播放 → **Launch Mod Uploader Tool**（或运行 `win64/mod_uploader.exe`）
-2. **Select Mod Directory** → 选择含 `_metadata` 的 `FullTranslateCN` 文件夹
-3. 填写标题 / 简介 / 预览图，Tags 勾选 **Translation**
-4. **Upload to Steam** → 生成 Mod ID 后到工坊页面把可见性改为**公开**
-
-> `.pak` 有 127 字符的资源路径长度限制，6 个深层路径的武器补丁（占 0.2%）无法打包进 .pak；文件夹版本 `FullTranslateCN.zip` 不受此限制。
