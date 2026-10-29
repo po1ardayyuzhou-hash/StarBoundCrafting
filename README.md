@@ -12,15 +12,15 @@ Starbound（星界边境）1.4.4 全量合成表，**单文件网页**，支持�
 
 | 项目 | 数量 |
 |---|---|
-| 配方 | **11180** 条（Frackin' Universe 7220 条，已全覆盖） |
+| 配方 | **16093** 条（其中 FU 机器加工 4913 条，FU 合成配方 7220 条全收录） |
 | 物品 | **18208** 种（FU 8988 件） |
-| 制作站 | 157 类 |
+| 制作站 / 加工设备 | 169 类（含 12 类 FU 加工机器） |
 | 分类 | 42 个 |
 | 内嵌图标 | 16384 件（去重 13507 张） |
 | 中文名覆盖 | **98.0%**（17850/18208，配套汉化 mod 补译 4477 条；剩余为本体/模组的占位 ID 名，如 `BP-13`） |
 | 中文描述覆盖 | **97.9%**（17822/18208，DeepL 翻译） |
 
-数据来自游戏本体 `packed.pak` 与创意工坊 **19 个 Mod** 的 `contents.pak`，主要包含 **Frackin' Universe**（707 MB）、**Arcana 奥法秘境**（160 MB）、**泰坦重工拓展**（66 MB）、**Voyage: An Arcana Addon**（51 MB）、**Enhanced Storage**、**LostBound**、**Broadswords Enhanced** 等内容，物品名取自社区汉化补丁（原版 SChinese、FU Schinese、奥法秘境简中补丁、泰坦重工汉化等）的游戏内文本。
+数据来自游戏本体 `packed.pak` 与创意工坊 **19 个 Mod** 的 `contents.pak`（含 FU 的 7 份机器加工产出表），主要包含 **Frackin' Universe**（707 MB）、**Arcana 奥法秘境**（160 MB）、**泰坦重工拓展**（66 MB）、**Voyage: An Arcana Addon**（51 MB）、**Enhanced Storage**、**LostBound**、**Broadswords Enhanced** 等内容，物品名取自社区汉化补丁（原版 SChinese、FU Schinese、奥法秘境简中补丁、泰坦重工汉化等）的游戏内文本。
 
 > 说明：Arcana 的官方简中补丁只覆盖约 4367 个资源文件（家具、方块、典籍大量未译）。为补齐这部分，本仓库另附 **全量汉化 mod**（`FullTranslateCN`），详见文末。
 
@@ -49,6 +49,10 @@ Starbound（星界边境）1.4.4 全量合成表，**单文件网页**，支持�
 - **合成配方**：制作站 + 材料清单 + 配方文件路径
 - **用于制作**：这件物品被哪些配方需要，可继续跳转
 
+**FU 机器加工**
+- 萃取设备（物质萃取器 / MKII / 手摇磨 / 量子萃取器）、筛粉机、碎岩机、离心机（铁制 / 工业 / 实验室）、气体离心机、木制离心机、先驱熔炉、异星实验室、液体混合器、蜂蜜灌装机、解剖台、灵能增幅器
+- 这类配方按「输入 → 产出」逐条展开，标注**数量区间**（如 ×2-4）、**掉落概率**（常见 / 少见 / 稀有 / 极稀有），确定性多产物会列「同时产出」
+
 **其他**
 - 深 / 浅色主题（跟随系统，可手动切换并记忆）
 - `/` 聚焦搜索，`Esc` 关闭
@@ -65,6 +69,7 @@ Starbound（星界边境）1.4.4 全量合成表，**单文件网页**，支持�
 | 怪物掉落 | `monstertype` 的 `dropPools` |
 | 战利品 / 宝箱 | `treasurepools` 池定义 |
 | 挖矿 | `biomes/oredistributions.configfunctions` 判定地表 / 地下 |
+| 机器加工 | FU 的 `extractionlab_recipes.config`、`centrifuge_recipes.config`、`xenostation_recipes.config`、`fu_liquidmixer_recipes.config` 等 7 份加工产出表 |
 
 18208 件物品中有 7251 件没有任何静态来源（多为 FU 数据库里的装饰物、方块变体，或依赖养殖、任务、交易等动态机制的物品），其余均标注了至少一种获取方式。
 
