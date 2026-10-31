@@ -22,7 +22,7 @@ Starbound（星界边境）1.4.4 全量合成表，**单文件网页**，支持�
 
 数据来自游戏本体 `packed.pak` 与创意工坊 **19 个 Mod** 的 `contents.pak`（含 FU 的 7 份机器加工产出表），主要包含 **Frackin' Universe**（707 MB）、**Arcana 奥法秘境**（160 MB）、**泰坦重工拓展**（66 MB）、**Voyage: An Arcana Addon**（51 MB）、**Enhanced Storage**、**LostBound**、**Broadswords Enhanced** 等内容，物品名取自社区汉化补丁（原版 SChinese、FU Schinese、奥法秘境简中补丁、泰坦重工汉化等）的游戏内文本。
 
-> 说明：Arcana 的官方简中补丁只覆盖约 4367 个资源文件（家具、方块、典籍大量未译）。为补齐这部分，本仓库另附 **全量汉化 mod**（`FullTranslateCN`），详见文末。
+> 说明：Arcana 的官方简中补丁只覆盖约 4367 个资源文件（家具、方块、典籍大量未译）。为补齐这部分，本仓库另附 **汉化补译 mod**（`FullTranslateCN`），详见文末。
 
 ## 功能
 
@@ -88,7 +88,7 @@ Starbound（星界边境）1.4.4 全量合成表，**单文件网页**，支持�
 
 ---
 
-## 配套：全量汉化 mod（FullTranslateCN）
+## 配套：汉化补译 mod（FullTranslateCN）
 
 针对 Arcana / Voyage / 泰坦重工 / FU 等模组中汉化补丁未覆盖的条目（名称、物品检视描述、任务面板文本、法典正文、NPC 对话、界面文字），生成了一个独立的 Starbound 补丁模组，直接放进游戏 `mods/` 目录即可生效（游戏内显示中文名称与描述，与合成表数据完全一致）。
 
