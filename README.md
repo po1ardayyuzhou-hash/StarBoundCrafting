@@ -103,6 +103,8 @@ Starbound（星界边境）1.4.4 全量合成表，**单文件网页**，支持�
 | 覆盖资源文件 | 5862 个，合计 **13910 条文本字段** |
 | 覆盖模组 | Arcana 奥法秘境、Voyage、泰坦重工拓展、Frackin' Universe、Galactic Almanach、Enhanced Storage 等 |
 
+其中 **1333 条长文本**（任务正文与目标、法典与过场、物品描述）已按英文原文**逐条重写**，不再是机翻：修正了语序错位、颜色代码包错的词、`Bring X back to Y at Z` 之类的硬译，以及 `Alt`（按键）被译成「阿尔特」、`Credits` 被译成「拨款」这类误译。其余短条目沿用术语词典 + 机器翻译，并统一了标点与专名。
+
 **安装**：把 `zzz_FullTranslateCN` 文件夹复制到 `Starbound/mods/` 下，重启游戏即可。mod 名带 `zzz_` 前缀，确保补丁在其他汉化之后加载、优先级最高。
 
 **翻译说明**：专有名词先按统一术语表替换（如 Ariostone → 奥里石、Titancorp → 泰坦重工、Verrostin → 维罗斯廷），再交由 DeepL 翻译，确保名称与描述用词一致。属检索向译文，非官方译名。
