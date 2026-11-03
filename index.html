@@ -119,6 +119,7 @@ select{
 .opt input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;margin:0}
 .opt .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .opt .c{color:var(--mut);font-size:11.5px;flex:0 0 auto}
+.opt .dot{width:9px;height:9px;border-radius:3px;flex:0 0 auto;box-shadow:inset 0 0 0 1.5px rgba(15,20,28,.22)}
 .pop .pf{display:flex;gap:8px;align-items:center;padding:7px 10px;border-top:1px solid var(--line2);font-size:12px;color:var(--mut)}
 .pop .pf button{border:1px solid var(--line);background:var(--card);color:var(--txt2);border-radius:7px;padding:4px 9px;cursor:pointer;font-size:12px}
 .pop .pf button:hover{border-color:var(--accent);color:var(--accent)}
@@ -136,6 +137,7 @@ select{
 .count{color:var(--txt2);font-size:13px}
 .count b{color:var(--accent);font-weight:700}
 .hint{color:var(--mut);font-size:12px;margin-left:auto}
+.hidtip{color:var(--mut);font-size:12px;margin-left:8px}
 .hint kbd{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;background:var(--card);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 5px;color:var(--txt2)}
 
 /* ---------------- cards ---------------- */
@@ -410,8 +412,15 @@ function acqSummary(i){
   return c;
 }
 
+/* ---------- 无配方数据物品 ---------- */
+/* 既不能合成、也没有任何获取途径（多为模组残留、纯背景墙变体），单独成类，默认不参与常规浏览 */
+const NO_DATA=new Set();
+IT.forEach((it,i)=>{ if(!acqOf(i) && !madeBy.has(i)) NO_DATA.add(i); });
+const DATA_IDX=[], DATA_ITEMS=[];
+IT.forEach((it,i)=>{ if(!NO_DATA.has(i)){ DATA_IDX.push(i); DATA_ITEMS.push(it); } });
+
 /* ---------- 状态 ---------- */
-const state={q:'',mode:'recipe',st:new Set(),cat:new Set(),src:new Set(),acq:new Set(),sort:'name',view:'card'};
+const state={q:'',mode:'recipe',st:new Set(),cat:new Set(),rar:new Set(),src:new Set(),acq:new Set(),sort:'name',view:'card'};
 
 /* ---------- 计数 ---------- */
 function countBy(list,keyf){
@@ -420,19 +429,32 @@ function countBy(list,keyf){
   return m;
 }
 const stCountR=countBy(R,r=>r.s), catCountR=countBy(R,r=>r.c), srcCountR=countBy(R,r=>[r.src]);
-const catCountI=countBy(IT,it=>[it[5]]), srcCountI=countBy(IT,it=>[it[9]]);
+const catCountI=countBy(DATA_ITEMS,it=>[it[5]]), srcCountI=countBy(DATA_ITEMS,it=>[it[9]]);
 const acqCountI={};
 for(const k in ACQ){ ACQ[k].forEach(([t])=>{ acqCountI[t]=(acqCountI[t]||0)+1; }); }
 const onlyCraft = IT.filter((it,i)=>!acqOf(i) && madeBy.has(i)).length;
+const RAR_ORDER=['common','uncommon','rare','legendary','essential','none'];
+function rarCounts(){
+  const m={};
+  if(state.mode==='recipe') R.forEach(r=>{ const k=rarOf(r.o)||'none'; m[k]=(m[k]||0)+1; });
+  else DATA_IDX.forEach(i=>{ const k=rarOf(i)||'none'; m[k]=(m[k]||0)+1; });
+  return m;
+}
 
 /* ---------- 筛选器定义 ---------- */
 const FILTERS={
   st:{label:'制作站', getOptions:()=>ST.map((s,i)=>[String(i),s,stCountR[i]||0]).filter(x=>x[2]>0)
         .sort((a,b)=>b[2]-a[2]), show:()=>state.mode==='recipe',
       has:(r,v)=>r.s.indexOf(+v)>=0},
-  cat:{label:'分类', getOptions:()=>CA.map((s,i)=>[String(i),s,state.mode==='recipe'?(catCountR[i]||0):(catCountI[s]||0)])
-        .filter(x=>x[2]>0).sort((a,b)=>b[2]-a[2]),
+  cat:{label:'分类', getOptions:()=>{
+        const list=CA.map((s,i)=>[String(i),s,state.mode==='recipe'?(catCountR[i]||0):(catCountI[s]||0)])
+          .filter(x=>x[2]>0).sort((a,b)=>b[2]-a[2]);
+        if(state.mode==='item' && NO_DATA.size) list.push(['none','无配方数据',NO_DATA.size]);
+        return list;
+      },
       has:(r,v)=>r.c.indexOf(+v)>=0},
+  rar:{label:'稀有度', dot:v=>v==='none'?'var(--line)':`var(--r-${v})`,
+      getOptions:()=>{ const m=rarCounts(); return RAR_ORDER.map(k=>[k, k==='none'?'无标注':RAR[k], m[k]||0]).filter(x=>x[2]>0); }},
   src:{label:'来源', getOptions:()=>SR.map((s,i)=>[String(i),s,state.mode==='recipe'?(srcCountR[i]||0):(srcCountI[i]||0)])
         .filter(x=>x[2]>0).sort((a,b)=>b[2]-a[2]),
       has:(r,v)=>r.src===+v},
@@ -477,7 +499,7 @@ function buildFilters(){
     pop.querySelector('[data-a=none]').onclick=()=>{ state[k].clear(); syncPop(k); render(true); updateFilterBtns(); };
   });
   const ca=document.createElement('button'); ca.className='clearall'; ca.textContent='清除全部筛选';
-  ca.onclick=()=>{ state.st.clear(); state.cat.clear(); state.src.clear(); state.acq.clear(); refreshPops(); updateFilterBtns(); render(true); };
+  ca.onclick=()=>{ state.st.clear(); state.cat.clear(); state.rar.clear(); state.src.clear(); state.acq.clear(); refreshPops(); updateFilterBtns(); render(true); };
   fBox.appendChild(ca);
   updateFilterBtns();
 }
@@ -488,7 +510,8 @@ function fillPop(k,q){
   pop.querySelector('.pc').textContent=`${opts.length} 项`;
   listEl.innerHTML=opts.map(([v,label,c])=>{
     const on=state[k].has(v);
-    return `<label class="opt"><input type="checkbox" data-v="${esc(v)}" ${on?'checked':''}>
+    const dot=f.dot?`<i class="dot" style="background:${f.dot(v)}"></i>`:'';
+    return `<label class="opt"><input type="checkbox" data-v="${esc(v)}" ${on?'checked':''}>${dot}
       <span class="t">${esc(label)}</span><span class="c">${c||''}</span></label>`;
   }).join('')||'<div class="none">无匹配项</div>';
   listEl.querySelectorAll('input').forEach(cb=>{
@@ -543,6 +566,7 @@ function curList(){
       const r=R[i];
       if(state.st.size && !r.s.some(x=>state.st.has(String(x)))) return false;
       if(state.cat.size && !r.c.some(x=>state.cat.has(String(x)))) return false;
+      if(state.rar.size && !state.rar.has(rarOf(r.o)||'none')) return false;
       if(state.src.size && !state.src.has(String(r.src))) return false;
       if(toks){ for(const t of toks) if(r._h.indexOf(t)<0) return false; }
       return true;
@@ -550,7 +574,11 @@ function curList(){
   }
   return IT.map((it,i)=>i).filter(i=>{
     const it=IT[i];
-    if(state.cat.size && !state.cat.has(String(CA.indexOf(it[5])))) return false;
+    if(state.cat.size){
+      const cv=NO_DATA.has(i)?'none':String(CA.indexOf(it[5]));
+      if(!state.cat.has(cv)) return false;
+    }else if(NO_DATA.has(i) && !toks) return false;   // 默认隐藏无配方数据的物品，搜索时例外
+    if(state.rar.size && !state.rar.has(rarOf(i)||'none')) return false;
     if(state.src.size && !state.src.has(String(it[9]))) return false;
     if(state.acq.size){
       let ok=false;
@@ -683,6 +711,8 @@ function render(reset){
     RE=curRegex(state.q.trim());
     countEl.innerHTML=`共 <b>${CURRENT.length}</b> ${state.mode==='recipe'?'条配方':'件物品'}` +
       (CURRENT.length!==(state.mode==='recipe'?R.length:IT.length)?` / 全部 ${state.mode==='recipe'?R.length:IT.length}`:'');
+    if(state.mode==='item' && !state.cat.has('none') && !state.q.trim() && NO_DATA.size)
+      countEl.innerHTML+=`<span class="hidtip">已隐藏 ${NO_DATA.size} 件无配方数据 · 可在「分类」中查看</span>`;
     if(!CURRENT.length){
       list.className='';
       list.innerHTML=`<div class="empty"><div class="big">🔍</div>没有匹配结果${state.q?`：<b>${esc(state.q)}</b>`:''}<br>
@@ -827,6 +857,7 @@ clearBtn.onclick=()=>{ q.value=''; state.q=''; clearBtn.style.display='none'; q.
 $('#sort').onchange=e=>{ state.sort=e.target.value; render(true); };
 document.querySelectorAll('#mode button').forEach(b=>b.onclick=()=>{
   state.mode=b.dataset.m;
+  if(state.mode==='recipe') state.cat.delete('none');
   document.querySelectorAll('#mode button').forEach(x=>x.classList.toggle('on',x===b));
   updateSortOptions();
   updateFilterBtns(); refreshPops(); render(true);
@@ -861,7 +892,7 @@ function readHash(){
     document.querySelectorAll('#mode button').forEach(x=>x.classList.toggle('on',x.dataset.m===state.mode)); }
   if(p.get('v')){ state.view=p.get('v');
     document.querySelectorAll('#viewseg button').forEach(x=>x.classList.toggle('on',x.dataset.v===state.view)); }
-  ['st','cat','src','acq'].forEach(k=>{ const val=p.get(k); if(val) val.split(',').forEach(x=>state[k].add(x)); });
+  ['st','cat','rar','src','acq'].forEach(k=>{ const val=p.get(k); if(val) val.split(',').forEach(x=>state[k].add(x)); });
   if(p.get('sort')){ state.sort=p.get('sort'); $('#sort').value=state.sort; }
   if(p.get('t')==='dark') document.documentElement.dataset.theme='dark';
   if(p.get('o')) setTimeout(()=>openDrawer(+p.get('o')),80);
@@ -872,7 +903,7 @@ function writeHash(){
   if(state.mode!=='recipe') p.set('m',state.mode);
   if(state.view!=='card') p.set('v',state.view);
   if(state.sort!=='name') p.set('sort',state.sort);
-  ['st','cat','src','acq'].forEach(k=>{ if(state[k].size) p.set(k,[...state[k]].join(',')); });
+  ['st','cat','rar','src','acq'].forEach(k=>{ if(state[k].size) p.set(k,[...state[k]].join(',')); });
   const s=p.toString();
   try{ history.replaceState(null,'',s?'#'+s:location.pathname+location.search); }catch(e){}
 }
