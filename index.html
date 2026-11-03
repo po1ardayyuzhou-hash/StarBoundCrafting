@@ -226,6 +226,11 @@ html[data-theme="dark"] .pst.env{color:#ed9a52;background:#2a1d10;border-color:#
 .lvb.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
 .lvb i{font-style:normal;font-size:11px;opacity:.62}
 .lvn{font-size:11.5px;color:var(--mut);margin-top:9px;line-height:1.6}
+.mgroup+.mgroup{margin-top:13px}
+.mghead{font-size:11.5px;color:var(--mut);margin-bottom:7px;display:flex;align-items:center;gap:6px}
+.mghead:before{content:'';width:2px;height:11px;border-radius:1px;background:var(--line)}
+.mgroup:first-child .mghead:before{background:var(--accent)}
+.mghead em{font-style:normal;opacity:.7}
 .och[data-r]{border-color:color-mix(in srgb,var(--rc) 45%,var(--line2));
   background:color-mix(in srgb,var(--rc) 9%,var(--bg2));color:color-mix(in srgb,var(--rc) 78%,var(--txt))}
 .rarleg{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:11.5px;color:var(--mut)}
@@ -1002,12 +1007,13 @@ function openPlanet(p, keep){
       p.env.map(([zh,hint])=>`<span class="etag">${esc(zh)}<i>${esc(hint)}</i></span>`).join('')}</div></div>`;
   }
 
-  /* 矿产：按等级解锁（u = 最早出现的等级），各层合并去重 */
+  /* 矿产：按等级解锁（u = 最早出现的等级），各层合并去重，并记录来源 */
   const oMap=new Map();
   (p.layers||[]).forEach(([g,ores])=>ores.forEach(([id,name,u])=>{
-    const prev=oMap.get(id);
-    if(!prev) oMap.set(id,{name,u});
-    else if(u<prev.u) prev.u=u;
+    let o=oMap.get(id);
+    if(!o){ o={name,u,planet:false,space:false}; oMap.set(id,o); }
+    else if(u<o.u) o.u=u;
+    if(g==='太空') o.space=true; else o.planet=true;   // 核心层也算星球本体
   }));
 
   /* 等级切换：矿产只在有解锁变化的区间内才值得切换 */
@@ -1026,15 +1032,26 @@ function openPlanet(p, keep){
   }
 
   const shown=[...oMap.entries()].filter(([,o])=>o.u<=curLv);
+  const onPlanet=shown.filter(([,o])=>o.planet);        // 地表 / 浅层 / 地下 / 核心
+  const inOrbit=shown.filter(([,o])=>!o.planet);        // 仅存在于太空小行星
+  const chip=([id,o])=>{
+    const r=rarOf(id);
+    return `<span class="och"${r?` data-r="${r}"`:''}>${esc(o.name)}</span>`;
+  };
   const rset=new Set(shown.map(([id])=>rarOf(id)||'none'));
   h+=`<div class="dsec psec"><h4>矿产 · ${shown.length}</h4>`;
   if(!shown.length){
     h+=`<div class="none">该等级下不生成矿脉。</div>`;
   }else{
-    h+=`<div class="pbl">${shown.map(([id,o])=>{
-      const r=rarOf(id);
-      return `<span class="och"${r?` data-r="${r}"`:''}>${esc(o.name)}</span>`;
-    }).join('')}</div>`;
+    h+=`<div class="mgroup"><div class="mghead">星球 · 地表 / 地下 / 核心<em>${onPlanet.length}</em></div>`;
+    h+= onPlanet.length
+      ? `<div class="pbl">${onPlanet.map(chip).join('')}</div>`
+      : `<div class="none">该类型在地表、地下与核心层都不生成矿脉，矿物只能从轨道小行星获取。</div>`;
+    h+=`</div>`;
+    if(inOrbit.length){
+      h+=`<div class="mgroup"><div class="mghead">轨道 · 太空小行星带<em>${inOrbit.length}</em></div>`;
+      h+=`<div class="pbl">${inOrbit.map(chip).join('')}</div></div>`;
+    }
     const order=RAR_ORDER.filter(k=>k!=='none'&&rset.has(k));
     if(order.length) h+=`<div class="rarleg">${order.map(k=>
       `<span data-r="${k}">${esc(RAR[k])}</span>`).join('')}</div>`;
@@ -1059,7 +1076,7 @@ function openPlanet(p, keep){
   h+=`<div class="dsec psec"><h4>群系 · ${(p.biomes||[]).length}</h4><div class="pbl">${
     chipList(p.biomes||[], 14, 'biome') || '<span class="none">无</span>'}</div></div>`;
 
-  h+=`<div class="pfoot">矿产由该星球各层矿脉合并去重，颜色代表矿物稀有度；等级依据矿脉配置的档位换算，实际生成还受群系与地形影响。</div>`;
+  h+=`<div class="pfoot">「星球」组来自地表、浅层、地下与核心层，落地即可开采；「轨道」组只存在于太空的小行星带，需要飞到轨道上敲。颜色代表矿物稀有度，等级依据矿脉配置的档位换算。</div>`;
 
   dbody.innerHTML=h;
   dbody.querySelectorAll('[data-exp]').forEach(b=>b.onclick=()=>{
