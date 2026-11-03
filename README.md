@@ -73,7 +73,8 @@ Starbound（星界边境）1.4.4 全量合成表，**单文件网页**，支持�
 | 采集 | 可采集对象的 `harvestPool` → `treasurepools` |
 | 怪物掉落 | `monstertype` 的 `dropPools` |
 | 战利品 / 宝箱 | `treasurepools` 池定义 |
-| 挖矿 | `biomes/oredistributions.configfunctions` 判定地表 / 地下 |
+| 挖矿 | `biomes/oredistributions.configfunctions` 判定地表 / 地下；
+| 矿物产地 | 每个矿物的「层 × 星球等级 × 群系」分布（`.biome` 的 `ores` 键 + FU 的 133KB 矿脉补丁），75 种矿物 |
 | 机器加工 | FU 的 `extractionlab_recipes.config`、`centrifuge_recipes.config`、`xenostation_recipes.config`、`fu_liquidmixer_recipes.config` 等 7 份加工产出表 |
 | 计算研究 | `/objects/generic/extractor_research.lua`：按「价格 × 稀有度 × 5%」折算，16461 件物品标注了研究点数 |
 
