@@ -75,6 +75,9 @@ Starbound（星界边境）1.4.4 全量合成表，**单文件网页**，支持�
 | 战利品 / 宝箱 | `treasurepools` 池定义 |
 | 挖矿 | `biomes/oredistributions.configfunctions` 判定地表 / 地下 |
 | 机器加工 | FU 的 `extractionlab_recipes.config`、`centrifuge_recipes.config`、`xenostation_recipes.config`、`fu_liquidmixer_recipes.config` 等 7 份加工产出表 |
+| 计算研究 | `/objects/generic/extractor_research.lua`：按「价格 × 稀有度 × 5%」折算，16461 件物品标注了研究点数 |
+
+物品详情面板还会显示「计算机研究」一栏：投入 1 个（或若干个低价值物品）能在科研计算机上换到多少研究点数。
 
 18208 件物品中有 7251 件没有任何静态来源（多为 FU 数据库里的装饰物、方块变体，或依赖养殖、任务、交易等动态机制的物品），其余均标注了至少一种获取方式。
 
