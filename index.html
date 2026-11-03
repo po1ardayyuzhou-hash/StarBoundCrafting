@@ -1370,7 +1370,9 @@ $('#foot').innerHTML=`<b>数据来源</b>：Starbound 1.4.4 本体 + 已安装�
  汉化补丁 SChinese / FuSchinese 叠加 · 物品 <b>${D.meta.items}</b> 件（含图标 ${D.meta.withIcon} 件）·
  配方 <b>${D.meta.recipes}</b> 条 · 制作站 ${ST.length} 类 · 星球类型 <b>${PL.length}</b> 种 · 怪物 <b>${MON.length}</b> 种<br>
  <b>获取途径</b>：合成配方、可采集植株（harvestPool）、怪物掉落（dropPools）、宝箱战利品池（treasurepools）、矿物分布（oredistributions）——
- 由游戏资源直接解析，未收录任务奖励与商人货架的动态生成内容。`;
+ 由游戏资源直接解析，未收录任务奖励与商人货架的动态生成内容。<br>
+ <b>⚠️ 注意</b>：配套的「汉化补译 mod」含 5862 个补丁文件，装上后游戏冷启动会从几十秒拉长到 <b>60~90 秒</b>，
+ 期间黑屏或 Steam 显示「运行中」都属正常，不是卡死，也请不要重复启动。`;
 
 buildFilters();
 readHash();
