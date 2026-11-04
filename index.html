@@ -553,7 +553,7 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function ihash(n){let h=0;for(let i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))|0;return Math.abs(h);}
 const PALETTE=['#d97428','#2f6fd0','#2f8f4e','#7c4dbe','#c2410c','#0d9488','#b45309','#4f46e5'];
-const RAR={common:'普通',uncommon:'罕见',rare:'稀有',legendary:'传说',essential:'必需'};
+const RAR={common:'普通',uncommon:'罕见',rare:'稀有',legendary:'史诗',essential:'传说'};
 const rarOf=i=>{const it=IT[i];if(!it)return '';const r=String(it[6]||'').toLowerCase();return RAR[r]?r:'';};
 const ACQ_META={
   1:{k:'采集',cls:'t1'},
