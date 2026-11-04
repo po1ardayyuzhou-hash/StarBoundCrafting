@@ -441,6 +441,7 @@ footer b{color:var(--txt2);font-weight:600}
       <button data-p="planets">星球百科</button>
       <button data-p="monsters">怪物图鉴</button>
       <button data-p="merchants">商人</button>
+      <button data-p="anomalies">轨道目标</button>
     </div>
 
     <div class="searchrow">
@@ -502,6 +503,15 @@ footer b{color:var(--txt2);font-weight:600}
   <div class="pgrid" id="rgrid"></div>
 </main>
 
+<main id="avview" hidden>
+  <div class="pfilter">
+    <input id="aq" type="search" autocomplete="off" placeholder="搜索名称 / 描述">
+    <div class="pchips" id="atabs"></div>
+    <span class="pcount" id="acount"></span>
+  </div>
+  <div class="pgrid" id="agrid"></div>
+</main>
+
 <main id="lview">
   <div id="list" class="grid"></div>
   <div id="morewrap"></div>
@@ -538,6 +548,7 @@ let IC = D.icons || [], PIC = D.pIcons || [];          // 拆分版稍后到达
 let PL = D.planets || [], MON = D.monsters || [];       // 同上
 let MER = D.merchants || [];                            // 商人（随 world 加载）
 let WI = D.weatherInfo || {};                           // 天气效果（同上）
+let ANO = D.anomalies || [], AIC = D.aIcons || [];      // 轨道目标（同上）
 const THR_NAME=['无害','低危','中等','高风险','危险','极端','致命','不可能','无法估量','免谈'];
 const MCAT={walkers:'步行',flyers:'飞行',critter:'小动物',bugs:'虫类',crawlers:'爬行',
   segmented:'多节',boss:'头目',pets:'宠物',fish:'鱼类',fishing:'鱼类',space:'太空',
@@ -1272,6 +1283,7 @@ function setPage(pg){
   $('#pview').hidden = pg!=='planets';
   $('#mview').hidden = pg!=='monsters';
   $('#rvview').hidden = pg!=='merchants';
+  $('#avview').hidden = pg!=='anomalies';
   // 物品侧的搜索框、模式切换、排序与筛选栏，在星球页一并收起
   document.querySelector('.searchrow').hidden = !isItems;
   $('#filters').hidden = !isItems;
@@ -1279,6 +1291,7 @@ function setPage(pg){
   if(pg==='planets'){ buildPlanetTabs(); renderPlanets(true); }
   if(pg==='monsters'){ buildMonsterTabs(); renderMonsters(true); }
   if(pg==='merchants'){ buildMerchantTabs(); renderMerchants(true); }
+  if(pg==='anomalies'){ buildAnoTabs(); renderAnomalies(true); }
 }
 document.querySelectorAll('#pagebar button').forEach(b=>b.onclick=()=>setPage(b.dataset.p));
 pgrid.addEventListener('click',e=>{
@@ -1385,6 +1398,13 @@ function openMerchant(m){
   }
   h+=`</div>`;
 
+  const loc=m[8]||[];
+  h+=`<div class="dsec psec"><h4>出现地点 · ${loc.length}</h4>`;
+  h+= loc.length
+    ? `<div class="pbl">${loc.map(x=>`<span class="bchip">${esc(x)}</span>`).join('')}</div>`
+    : `<div class="none">没有记录到固定地点，可能由模组随机投放。</div>`;
+  h+=`<div class="lvn">按游戏资源中的引用反查：地牢、前哨站、殖民地房客、任务与太空目标。</div></div>`;
+
   h+=`<div class="dsec psec"><h4>交易系数</h4>
     <div class="mgroup"><div class="mghead">玩家买入<em>×${buy[0]} ~ ×${buy[1]}</em></div></div>
     <div class="mgroup"><div class="mghead">玩家卖出<em>×${sell[0]} ~ ×${sell[1]}</em></div></div>
@@ -1423,6 +1443,155 @@ rgrid.addEventListener('click',e=>{
   if(!card) return;
   const m=MER.find(x=>x[0]===card.dataset.rid);
   if(m) openMerchant(m);
+});
+
+/* ---------- 轨道目标 ---------- */
+const astate={q:'',typ:'',shown:0};
+const PAGE_A=24;
+const agrid=$('#agrid'), acount=$('#acount');
+
+/* 同名同类型的目标合并成一组（如 5 个“和平卫士空间站”），抽屉里再逐个展开 */
+function anoGroups(list){
+  const m=new Map();
+  list.forEach(a=>{
+    const k=a[3]+'|'+a[1];
+    if(!m.has(k)) m.set(k,[]);
+    m.get(k).push(a);
+  });
+  return [...m.values()].map(arr=>{
+    const thrMax=Math.max(...arr.map(x=>x[4]));
+    const thrMin=Math.min(...arr.map(x=>x[4]));
+    const mv=arr.every(x=>x[5])?'mov':(arr.some(x=>x[5])?'part':'still');
+    const gi=(arr.find(x=>x[6]>=0)||[])[6];
+    return {name:arr[0][1], type:arr[0][3], arr,
+            thrMax, thrMin, mv,
+            icon:(gi===undefined?-1:gi),
+            src:arr.some(x=>x[7])?1:0};
+  });
+}
+function anoCard(g){
+  const col=PALETTE[ihash(g.name)%PALETTE.length];
+  const thumb=(g.icon>=0 && AIC[g.icon])
+    ? `<img src="data:image/png;base64,${AIC[g.icon]}" alt="">`
+    : `<span class="mchar" style="background:${col}22;color:${col}">${esc((g.name||'?').slice(0,1))}</span>`;
+  const thr = g.thrMax ? (g.thrMin===g.thrMax?`威胁 <b>${g.thrMax}</b>`:`威胁 <b>${g.thrMin}–${g.thrMax}</b>`)
+                       : '威胁不明';
+  const mv = g.mv==='mov'?'沿轨道移动':(g.mv==='part'?'部分会移动':'固定不动');
+  const desc=(g.arr[0][2]||'—');
+  return `<article class="pcard" data-ag="${esc(g.type+'|'+g.name)}">
+    <div class="pthumb">${thumb}</div>
+    <div class="pwrap">
+      <div class="phd"><h3>${esc(g.name)}</h3><span class="psrc">${esc(g.type)}</span>${g.arr.length>1?`<span class="psrc" style="opacity:.75">×${g.arr.length}</span>`:''}</div>
+      <div class="pbi">${esc(desc)}</div>
+      <div class="pstats">
+        <span class="pst">${thr}</span>
+        <span class="pst">${mv}</span>
+        ${g.src?'<span class="pst env">模组</span>':''}
+      </div>
+      <span class="pgo">查看详情 ›</span>
+    </div>
+  </article>`;
+}
+function anoList(){
+  const q=astate.q.trim().toLowerCase();
+  const hit=ANO.filter(a=>{
+    if(!q) return true;
+    return (a[1]||'').toLowerCase().includes(q) || a[0].toLowerCase().includes(q)
+        || (a[2]||'').toLowerCase().includes(q);
+  });
+  return anoGroups(hit).filter(g=>!astate.typ || g.type===astate.typ)
+    .sort((a,b)=>{
+      if(a.src!==b.src) return a.src-b.src;
+      const o=['空间站','飞船','遗迹','异常'];
+      if(a.type!==b.type) return o.indexOf(a.type)-o.indexOf(b.type);
+      if(b.thrMax!==a.thrMax) return b.thrMax-a.thrMax;
+      return String(a.name).localeCompare(String(b.name),'zh');
+    });
+}
+function renderAnomalies(reset){
+  if(reset) astate.shown=0;
+  const all=anoList();
+  const batch=all.slice(astate.shown, astate.shown+PAGE_A);
+  astate.shown+=batch.length;
+  const html=batch.map(anoCard).join('');
+  if(reset) agrid.innerHTML=html || `<div class="empty" style="grid-column:1/-1"><div class="big">🛰️</div>没有匹配的轨道目标</div>`;
+  else agrid.insertAdjacentHTML('beforeend', html);
+  const nEntry=ANO.length, nGroup=anoGroups(ANO).length;
+  acount.innerHTML=`共 <b>${nGroup}</b> 类目标（${nEntry} 个变体）· 位于星系轨道，需驾驶机甲前往`;
+  let more=document.getElementById('amore');
+  if(astate.shown<all.length){
+    if(!more){
+      more=document.createElement('button'); more.id='amore'; more.className='morep';
+      more.onclick=()=>renderAnomalies(false); agrid.after(more);
+    }
+    more.textContent=`加载更多（还有 ${all.length-astate.shown} 类）`;
+  }else if(more) more.remove();
+}
+function buildAnoTabs(){
+  const order=['空间站','飞船','遗迹','异常'];
+  const gs=anoGroups(ANO);
+  const c={}; gs.forEach(g=>c[g.type]=(c[g.type]||0)+1);
+  const mk=(v,label,n)=>`<button class="pchip${astate.typ===v?' on':''}" data-atyp="${v}">${label} ${n}</button>`;
+  $('#atabs').innerHTML=mk('','全部',gs.length)+
+    order.filter(k=>c[k]).map(k=>mk(k,k,c[k])).join('');
+  $('#atabs').querySelectorAll('[data-atyp]').forEach(b=>b.onclick=()=>{
+    astate.typ=b.dataset.atyp; buildAnoTabs(); renderAnomalies(true);
+  });
+}
+function openAnomalyGroup(g){
+  const col=PALETTE[ihash(g.name)%PALETTE.length];
+  di.innerHTML=(g.icon>=0 && AIC[g.icon])
+    ? `<img src="data:image/png;base64,${AIC[g.icon]}" alt="">`
+    : `<span class="mchar" style="background:${col}22;color:${col}">${esc((g.name||'?').slice(0,1))}</span>`;
+  delete di.dataset.r;
+  dn.textContent=g.name;
+  did.textContent=g.arr.length>1?`${g.arr.length} 个变体`:g.arr[0][0];
+  db.innerHTML=[
+    `<span class="badge">${esc(g.type)}</span>`,
+    g.thrMax?`<span class="badge">威胁 ${g.thrMin===g.thrMax?g.thrMax:g.thrMin+'–'+g.thrMax}</span>`:'',
+    `<span class="badge">${g.mv==='mov'?'沿轨道移动':(g.mv==='part'?'部分会移动':'固定不动')}</span>`,
+    `<span class="badge">${g.src?'模组':'本体'}</span>`
+  ].filter(Boolean).join('');
+
+  let h='';
+  if(g.arr.length===1){
+    const a=g.arr[0];
+    h+=`<div class="dsec psec"><h4>说明</h4>
+      <div class="lvn" style="font-size:12.5px;line-height:1.75;color:var(--txt2)">${esc(a[2]||'游戏内没有为这个目标提供描述。')}</div></div>`;
+    h+=`<div class="dsec psec"><h4>内部标识</h4>
+      <div class="pbl"><span class="bchip" style="font-family:ui-monospace,monospace">${esc(a[0])}</span></div>
+      <div class="lvn">进入点：InstanceWorld:${esc(a[0])}</div></div>`;
+  }else{
+    h+=`<div class="dsec psec"><h4>变体 · ${g.arr.length}</h4>
+      <div class="lvn">游戏里这些目标对外显示同一个名字，实际是不同地点，登舰后内容各不相同。</div>`;
+    g.arr.forEach((a,i)=>{
+      h+=`<div class="mgroup">
+        <div class="mghead"><span style="font-family:ui-monospace,monospace">${esc(a[0])}</span>
+          <em>${a[4]?'威胁 '+a[4]:'威胁不明'} · ${a[5]?'移动':'静止'}</em></div>
+        <div class="lvn" style="margin-top:4px">${esc(a[2]||'无描述')}</div>
+      </div>`;
+    });
+    h+=`</div>`;
+  }
+
+  h+=`<div class="dsec psec"><h4>前往方式</h4>
+    <div class="lvn">这类目标位于星系轨道上，<b>不能直接降落</b>，需要驾驶机甲（Mech）在太空中飞近后登舰。
+    部分目标会沿轨道移动，需要追上去。</div></div>`;
+
+  h+=`<div class="pfoot">数据来自 /system_objects.config 的 warpAction 与 parameters，名称与描述取自游戏内文本。</div>`;
+  dbody.innerHTML=h;
+  dbody.scrollTop=0;
+  drawer.classList.add('on'); backdrop.classList.add('on');
+  drawer.setAttribute('aria-hidden','false');
+}
+
+$('#aq').oninput=e=>{ astate.q=e.target.value; renderAnomalies(true); };
+agrid.addEventListener('click',e=>{
+  const card=e.target.closest('[data-ag]');
+  if(!card) return;
+  const [typ,name]=card.dataset.ag.split('|');
+  const hit=ANO.filter(a=>a[3]===typ && a[1]===name);
+  if(hit.length) openAnomalyGroup(anoGroups(hit)[0]);
 });
 
 /* ---------- 抽屉 ---------- */
@@ -1651,6 +1820,8 @@ if(!PART.world){
   if(m) m.innerHTML='<div class="empty" style="grid-column:1/-1">正在载入怪物数据…</div>';
   const r=document.getElementById('rgrid');
   if(r) r.innerHTML='<div class="empty" style="grid-column:1/-1">正在载入商人数据…</div>';
+  const a=document.getElementById('agrid');
+  if(a) a.innerHTML='<div class="empty" style="grid-column:1/-1">正在载入轨道目标…</div>';
 }
 function applyPart(name){
   PART[name]=true;
@@ -1661,9 +1832,11 @@ function applyPart(name){
     if(state.page==='monsters') renderMonsters(true);
   }else{
     PL=D.planets||[]; MON=D.monsters||[]; MER=D.merchants||[]; WI=D.weatherInfo||{};
+    ANO=D.anomalies||[]; AIC=D.aIcons||[];
     if(state.page==='planets'){ buildPlanetTabs(); renderPlanets(true); }
     if(state.page==='monsters'){ buildMonsterTabs(); renderMonsters(true); }
     if(state.page==='merchants'){ buildMerchantTabs(); renderMerchants(true); }
+    if(state.page==='anomalies'){ buildAnoTabs(); renderAnomalies(true); }
   }
 }
 if(!PART.icons) loadPart('icons','data/icons.js').then(ok=>{ if(ok) applyPart('icons'); });
