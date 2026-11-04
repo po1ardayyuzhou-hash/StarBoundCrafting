@@ -177,20 +177,34 @@ select{
 .phd{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .phd h3{margin:0;font-size:15.5px;font-weight:700}
 .thr{font-size:11px;padding:1px 8px;border-radius:999px;background:var(--bg2);border:1px solid var(--line2);color:var(--txt2);white-space:nowrap}
-.thr[data-t="1"],.pball[data-t="1"]{--tc:#2f8f4e}
-.thr[data-t="2"],.pball[data-t="2"]{--tc:#4a9a2e}
-.thr[data-t="3"],.pball[data-t="3"]{--tc:#a8871a}
-.thr[data-t="4"],.pball[data-t="4"]{--tc:#c06a12}
-.thr[data-t="5"],.pball[data-t="5"]{--tc:#c04a20}
-.thr[data-t="6"],.pball[data-t="6"]{--tc:#b8322b}
+.thr[data-t="1"],.pball[data-t="1"],.thrtag[data-t="1"]{--tc:#2f8f4e}
+.thr[data-t="2"],.pball[data-t="2"],.thrtag[data-t="2"]{--tc:#4a9a2e}
+.thr[data-t="3"],.pball[data-t="3"],.thrtag[data-t="3"]{--tc:#a8871a}
+.thr[data-t="4"],.pball[data-t="4"],.thrtag[data-t="4"]{--tc:#c06a12}
+.thr[data-t="5"],.pball[data-t="5"],.thrtag[data-t="5"]{--tc:#c04a20}
+.thr[data-t="6"],.pball[data-t="6"],.thrtag[data-t="6"]{--tc:#b8322b}
+.thr[data-t="7"],.pball[data-t="7"],.thrtag[data-t="7"]{--tc:#a82a52}
+.thr[data-t="8"],.pball[data-t="8"],.thrtag[data-t="8"]{--tc:#8f2a86}
+.thr[data-t="9"],.pball[data-t="9"],.thrtag[data-t="9"]{--tc:#6b2bb0}
+.thr[data-t="10"],.pball[data-t="10"],.thrtag[data-t="10"]{--tc:#3f2f8f}
 .thr[data-t]{color:var(--tc);background:color-mix(in srgb,var(--tc) 13%,transparent);
   border-color:color-mix(in srgb,var(--tc) 32%,transparent)}
-html[data-theme="dark"] .thr[data-t="1"],.pball[data-t="1"]{--tc:#5fbf7f}
-html[data-theme="dark"] .thr[data-t="2"],.pball[data-t="2"]{--tc:#7cc45a}
-html[data-theme="dark"] .thr[data-t="3"],.pball[data-t="3"]{--tc:#d9b64a}
-html[data-theme="dark"] .thr[data-t="4"],.pball[data-t="4"]{--tc:#ed9a52}
-html[data-theme="dark"] .thr[data-t="5"],.pball[data-t="5"]{--tc:#ef8262}
-html[data-theme="dark"] .thr[data-t="6"],.pball[data-t="6"]{--tc:#ef6f68}
+html[data-theme="dark"] .thr[data-t="1"],.pball[data-t="1"],.thrtag[data-t="1"]{--tc:#5fbf7f}
+html[data-theme="dark"] .thr[data-t="2"],.pball[data-t="2"],.thrtag[data-t="2"]{--tc:#7cc45a}
+html[data-theme="dark"] .thr[data-t="3"],.pball[data-t="3"],.thrtag[data-t="3"]{--tc:#d9b64a}
+html[data-theme="dark"] .thr[data-t="4"],.pball[data-t="4"],.thrtag[data-t="4"]{--tc:#ed9a52}
+html[data-theme="dark"] .thr[data-t="5"],.pball[data-t="5"],.thrtag[data-t="5"]{--tc:#ef8262}
+html[data-theme="dark"] .thr[data-t="6"],.pball[data-t="6"],.thrtag[data-t="6"]{--tc:#ef6f68}
+html[data-theme="dark"] .thr[data-t="7"],.pball[data-t="7"],.thrtag[data-t="7"]{--tc:#f07a9a}
+html[data-theme="dark"] .thr[data-t="8"],.pball[data-t="8"],.thrtag[data-t="8"]{--tc:#df82d8}
+html[data-theme="dark"] .thr[data-t="9"],.pball[data-t="9"],.thrtag[data-t="9"]{--tc:#b48cf0}
+html[data-theme="dark"] .thr[data-t="10"],.pball[data-t="10"],.thrtag[data-t="10"]{--tc:#9b93f5}
+.thrline{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px}
+.thrtag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;padding:2px 9px 2px 7px;border-radius:999px;
+  color:var(--tc);background:color-mix(in srgb,var(--tc) 12%,transparent);
+  border:1px solid color-mix(in srgb,var(--tc) 30%,transparent)}
+.thrtag b{font-family:ui-monospace,monospace;font-size:10.5px;opacity:.85}
+.thrtag i{font-style:normal;font-size:10px;opacity:.65;letter-spacing:.02em}
 .psrc{font-size:10.5px;padding:1px 7px;border-radius:999px;background:var(--bg2);color:var(--mut);border:1px solid var(--line2)}
 .pbi{font-size:12px;color:var(--mut);margin-top:6px;line-height:1.55}
 .pls{margin-top:10px;display:flex;flex-direction:column;gap:7px}
@@ -550,6 +564,31 @@ let MER = D.merchants || [];                            // 商人（随 world �
 let WI = D.weatherInfo || {};                           // 天气效果（同上）
 let ANO = D.anomalies || [], AIC = D.aIcons || [];      // 轨道目标（同上）
 const THR_NAME=['无害','低危','中等','高风险','危险','极端','致命','不可能','无法估量','免谈'];
+const THR_ROMAN=['I','II','III','IV','V','VI','VII','VIII','IX','X'];
+const THR_FULL=THR_NAME.map((n,i)=>`${n}（${THR_ROMAN[i]}）`);
+const THR_DESC=[
+  '几乎没有敌意生物，适合首次落脚与采集。',
+  '偶有小体型生物出没，注意保暖和基础防护。',
+  '常规野兽会主动袭击，随身带些绷带。',
+  '成群敌对生物，建议成套装束再降落。',
+  '生物与环境双重威胁，治疗与抗性缺一不可。',
+  '高伤害生物密集，需要毕业级装备。',
+  '一次失误就可能致命，务必带满补给。',
+  '常规手段几乎无法生存，只推荐挑战者。',
+  '环境数据超出扫描范围，降落等于赌博。',
+  '没有任何生还记录，不要降落。'
+];
+function thrFull(t){ return (t>=1&&t<=10) ? THR_FULL[t-1] : '未知'; }
+/* 轨道目标/空间站在游戏里用的是 objectThreatText 这一套 6 档文案（与星球 10 档不同） */
+const ANO_THR=['无','中等','冒险','危险','极端','致命'];
+const ANO_THR_DESC=['扫描不到敌对信号，可以放心靠近。',
+  '偶有守卫或无人机巡逻，注意别先开火。',
+  '驻防力量会主动拦截，建议先升级机甲。',
+  '火力密集，贸然登舰很可能有去无回。',
+  '重型武器与护盾并存，需要成装机甲。',
+  '见到就该绕开，生还记录极少。'];
+function anoThr(t){ if(t<1||t>6) return '不明'; return t===1 ? '无' : `${t} · ${ANO_THR[t-1]}`; }
+function anoThrDesc(t){ return ANO_THR_DESC[t-1] || '游戏未给该等级提供说明。'; }
 const MCAT={walkers:'步行',flyers:'飞行',critter:'小动物',bugs:'虫类',crawlers:'爬行',
   segmented:'多节',boss:'头目',pets:'宠物',fish:'鱼类',fishing:'鱼类',space:'太空',
   ghosts:'幽灵',bees:'蜜蜂',mechdrone:'机兵',monsters:'常规',dungeon:'地牢',
@@ -927,7 +966,8 @@ const pgrid=$('#pgrid'), pcount=$('#pcount');
 
 function thrLabel(p){
   const [a,b]=p.threat||[0,0];
-  if(a===b) return `威胁 ${a} · ${THR_NAME[a-1]||''}`.trim();
+  if(a===b) return `威胁 ${a} · ${thrFull(a)}`;
+  if(a+1===b) return `威胁 ${a}–${b} · ${THR_NAME[a-1]}–${THR_NAME[b-1]}`;
   return `威胁 ${a}–${b}`;
 }
 function planetCard(p){
@@ -947,7 +987,7 @@ function planetCard(p){
     <div class="pthumb">${thumb}</div>
     <div class="pwrap">
       <div class="phd"><h3>${esc(p.name)}</h3>
-        <span class="thr" data-t="${p.threat[0]}">${esc(thrLabel(p))}</span>
+        <span class="thr" data-t="${p.threat[0]}" title="${esc(THR_DESC[p.threat[0]-1]||'')}">${esc(thrLabel(p))}</span>
         ${p.src?'<span class="psrc">模组</span>':''}
       </div>
       <div class="pbi">群系：${biomes}</div>
@@ -1002,7 +1042,7 @@ function buildPlanetTabs(){
   let tiers=`<button class="pchip${pstate.t===0?' on':''}" data-t="0">全部等级</button>`;
   for(let i=1;i<=maxT;i++){
     tiers+=`<button class="pchip${pstate.t===i?' on':''}" data-t="${i}"
-      title="${THR_NAME[i-1]||''} · ${tc[i]||0} 种星球">${i} 级${tc[i]?` <span class="tc">${tc[i]}</span>`:''}</button>`;
+      title="${thrFull(i)} · ${tc[i]||0} 种星球">${i} 级${tc[i]?` <span class="tc">${tc[i]}</span>`:''}</button>`;
   }
   box.innerHTML=srcs.map(([v,l])=>`<button class="pchip${pstate.src===+v?' on':''}" data-src="${v}">${l}</button>`).join('')+tiers;
   box.querySelectorAll('[data-src]').forEach(b=>b.onclick=()=>{
@@ -1050,13 +1090,23 @@ function openPlanet(p, keep){
   delete di.dataset.r;   // 清掉上一条物品的稀有度外圈
   dn.textContent=p.name;
   did.textContent=p.id;
+  const thrTxt = t0===t1 ? thrFull(t0)
+    : (t0>=1 ? `${t0}–${t1} · ${THR_NAME[t0-1]}–${THR_NAME[t1-1]}` : `${t0}–${t1}`);
   db.innerHTML=[
-    `<span class="badge">威胁 ${t0}${t1!==t0?'–'+t1:''}</span>`,
+    `<span class="badge" title="${esc(THR_DESC[t0-1]||THR_DESC[t1-1]||'')}">威胁 ${esc(thrTxt)}</span>`,
     `<span class="badge">${p.src?'模组':'本体'}</span>`,
     `<span class="badge">${p.nBiomes} 个群系</span>`
   ].join('');
 
   let h='';
+
+  /* 威胁等级 */
+  const thrItems=[];
+  for(let L=Math.max(1,t0);L<=Math.min(t1,10);L++)
+    thrItems.push(`<span class="thrtag" data-t="${L}"><b>${L}</b>${esc(THR_NAME[L-1])}<i>${esc(THR_ROMAN[L-1])}</i></span>`);
+  h+=`<div class="dsec psec"><h4>威胁等级</h4>
+    <div class="thrline">${thrItems.join('')}</div>
+    <div class="lvn">${esc(THR_DESC[Math.min(t1,10)-1]||'游戏未给该等级提供说明。')}</div></div>`;
 
   /* 推荐防护 */
   if((p.env||[]).length){
@@ -1474,7 +1524,7 @@ function anoCard(g){
   const thumb=(g.icon>=0 && AIC[g.icon])
     ? `<img src="data:image/png;base64,${AIC[g.icon]}" alt="">`
     : `<span class="mchar" style="background:${col}22;color:${col}">${esc((g.name||'?').slice(0,1))}</span>`;
-  const thr = g.thrMax ? (g.thrMin===g.thrMax?`威胁 <b>${g.thrMax}</b>`:`威胁 <b>${g.thrMin}–${g.thrMax}</b>`)
+  const thr = g.thrMax ? (g.thrMin===g.thrMax?`威胁 <b>${esc(anoThr(g.thrMax))}</b>`:`威胁 <b>${g.thrMin}–${g.thrMax}</b> · ${esc(ANO_THR[g.thrMax-1]||'')}`)
                        : '威胁不明';
   const mv = g.mv==='mov'?'沿轨道移动':(g.mv==='part'?'部分会移动':'固定不动');
   const desc=(g.arr[0][2]||'—');
@@ -1548,7 +1598,7 @@ function openAnomalyGroup(g){
   did.textContent=g.arr.length>1?`${g.arr.length} 个变体`:g.arr[0][0];
   db.innerHTML=[
     `<span class="badge">${esc(g.type)}</span>`,
-    g.thrMax?`<span class="badge">威胁 ${g.thrMin===g.thrMax?g.thrMax:g.thrMin+'–'+g.thrMax}</span>`:'',
+    g.thrMax?`<span class="badge" title="${esc(anoThrDesc(g.thrMax))}">威胁 ${g.thrMin===g.thrMax?esc(anoThr(g.thrMax)):g.thrMin+'–'+g.thrMax}</span>`:'',
     `<span class="badge">${g.mv==='mov'?'沿轨道移动':(g.mv==='part'?'部分会移动':'固定不动')}</span>`,
     `<span class="badge">${g.src?'模组':'本体'}</span>`
   ].filter(Boolean).join('');
@@ -1567,7 +1617,7 @@ function openAnomalyGroup(g){
     g.arr.forEach((a,i)=>{
       h+=`<div class="mgroup">
         <div class="mghead"><span style="font-family:ui-monospace,monospace">${esc(a[0])}</span>
-          <em>${a[4]?'威胁 '+a[4]:'威胁不明'} · ${a[5]?'移动':'静止'}</em></div>
+          <em>${a[4]?'威胁 '+esc(anoThr(a[4])):'威胁不明'} · ${a[5]?'移动':'静止'}</em></div>
         <div class="lvn" style="margin-top:4px">${esc(a[2]||'无描述')}</div>
       </div>`;
     });
