@@ -269,6 +269,9 @@ html[data-theme="dark"] .pst.liq b{color:#74c6ef}
 .pstats{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center}
 .pst{font-size:12px;color:var(--txt2);background:var(--bg2);border:1px solid var(--line2);border-radius:7px;padding:1.5px 7px}
 .pst b{color:var(--accent);font-weight:700;margin-right:2px}
+.pst.cbtchip{color:#a13a2e;background:#fdeeea;border-color:#f2cfc6}
+.pst.cbtchip b{color:#c0392b}
+.pst.cbtchip .cbtu{white-space:nowrap}
 .pst.env{color:#c06a12;background:#fdf1e3;border-color:#f0d6b6}
 html[data-theme="dark"] .pst.env{color:#ed9a52;background:#2a1d10;border-color:#4a3320}
 .pbl .bchip i{font-style:normal;color:var(--mut);font-size:10.5px;margin-left:4px}
@@ -1471,7 +1474,8 @@ const cgrid=$('#cgrid'), ccount=$('#ccount');
 $('#cq').oninput=e=>{ cstate.q=e.target.value; renderCrew(true); };
 /* d.crew = { roles:[[名称,特长,来源idx,角色类型,描述,加成...,[npc id...]]], fx:{效果id:[中文label,图标b64]} }
    加成编码：["ship",属性,数值]（船员在船即生效） / ["regen",数值]（船上回血）
-            ["eph",效果id,秒]（对话触发，有冷却） / ["pers",效果id]（船上常驻） */
+            ["eph",效果id,秒]（对话触发，有冷却） / ["pers",效果id]（船上常驻）
+            ["cbt",{hp,dmg,regen,immunity}]（战斗数值简介） */
 const SHIP_PROP={
   shipSpeed:      ['飞船速度', v=>(Math.round(v/15*1000)/10)+'%'],
   fuelEfficiency: ['燃料效率', v=>(Math.round(v*1000)/10)+'%'],
@@ -1498,12 +1502,22 @@ function crewChip(b){
     const [lab,ic]=crewFxInfo(b[1]);
     return `<span class="pst">${crewFxIcon(ic)}${sbHTML(lab)} <span class="mut">· 船上常驻</span></span>`;
   }
+  if(b[0]==='cbt'){
+    const c=b[1];
+    const parts=[];
+    if(c.hp!=null) parts.push(`<span class="cbtu">❤ <b>${c.hp}</b> 生命</span>`);
+    if(c.dmg!=null) parts.push(`<span class="cbtu">⚔ 攻击 ×${Math.round(c.dmg*100)}%</span>`);
+    if(c.regen) parts.push(`<span class="cbtu">♻ 回血 ${c.regen}/秒</span>`);
+    if(c.immunity) parts.push(`<span class="cbtu">🛡 状态免疫</span>`);
+    return `<span class="pst cbtchip">${parts.join('<span class="mut">　·　</span>')}</span>`;
+  }
   return '';
 }
 function crewSearchKey(r){
   const bens=r[5].map(b=>{
     if(b[0]==='ship') return SHIP_PROP[b[1]]?SHIP_PROP[b[1]][0]:b[1];
     if(b[0]==='regen') return '生命恢复';
+    if(b[0]==='cbt') return '生命 攻击 回血 状态免疫';
     return crewFxInfo(b[1])[0];
   }).join(' ');
   return (r[0]+' '+r[1]+' '+r[3]+' '+(r[4]||'')+' '+r[6].join(' ')+' '+bens).toLowerCase();
