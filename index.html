@@ -205,6 +205,45 @@ html[data-theme="dark"] .thr[data-t="10"],.pball[data-t="10"],.thrtag[data-t="10
   border:1px solid color-mix(in srgb,var(--tc) 30%,transparent)}
 .thrtag b{font-family:ui-monospace,monospace;font-size:10.5px;opacity:.85}
 .thrtag i{font-style:normal;font-size:10px;opacity:.65;letter-spacing:.02em}
+/* ---------- 酿造学 ---------- */
+.bsect{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-top:14px}
+.bcard{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:13px 14px;
+  display:flex;flex-direction:column;gap:9px;box-shadow:0 6px 18px -14px rgba(16,24,40,.28)}
+.bhd{display:flex;align-items:center;gap:10px}
+.bico{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;background:var(--bg2);
+  border:1px solid var(--line2);border-radius:9px;overflow:hidden}
+.bico img{width:26px;height:26px;image-rendering:pixelated;object-fit:contain}
+.bico .ph{width:26px;height:26px;font-size:13px}
+.bhd h4{margin:0;font-size:14px;font-weight:700;line-height:1.3}
+.bcode{font-family:ui-monospace,monospace;font-size:10.5px;color:var(--mut);
+  background:var(--bg2);border:1px solid var(--line2);border-radius:6px;padding:0 5px;margin-left:6px;vertical-align:1px}
+.btags{display:flex;flex-wrap:wrap;gap:5px}
+.btag{font-size:11px;padding:1px 7px;border-radius:999px;background:var(--bg2);border:1px solid var(--line2);color:var(--txt2);white-space:nowrap}
+.btag i{font-style:normal;opacity:.6;margin-left:3px;font-size:10px}
+.btag.num{font-family:ui-monospace,monospace}
+.bd{font-size:12px;line-height:1.68;color:var(--txt2);margin:0}
+.bd b{color:var(--txt)}
+.bflow{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:16px 0 4px}
+.bstep{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 13px;position:relative}
+.bstep em{position:absolute;top:10px;right:12px;font-style:normal;font-size:11px;font-weight:700;
+  color:var(--mut);font-family:ui-monospace,monospace}
+.bstep h5{margin:0 0 6px;font-size:13px}
+.bstep p{margin:0;font-size:11.5px;line-height:1.6;color:var(--txt2)}
+.bmini{width:100%;border-collapse:collapse;font-size:11px;margin-top:2px}
+.bmini th{color:var(--mut);font-weight:600;text-align:center;padding:2px 3px;border-bottom:1px solid var(--line2)}
+.bmini td{text-align:center;padding:2px 3px;color:var(--txt2);font-family:ui-monospace,monospace}
+.bsteps{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.bch{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 7px 2px 4px;border-radius:7px;
+  background:var(--bg2);border:1px solid var(--line2);color:var(--txt2)}
+.bch img{width:15px;height:15px;image-rendering:pixelated}
+.bch em{font-style:normal;font-family:ui-monospace,monospace;font-size:9.5px;opacity:.55}
+.bstir{font-size:10.5px;color:var(--mut);padding:2px 6px;border-radius:6px;border:1px dashed var(--line2)}
+.bdet{margin-top:2px}
+.bdet summary{cursor:pointer;font-size:11.5px;color:var(--mut);list-style:none}
+.bdet summary::-webkit-details-marker{display:none}
+.bdet summary:hover{color:var(--txt)}
+.bdet p{margin:7px 0 0;font-size:11.5px;line-height:1.7;color:var(--txt2)}
+.blegend{font-size:12px;color:var(--mut);margin:10px 0 0;line-height:1.6}
 .psrc{font-size:10.5px;padding:1px 7px;border-radius:999px;background:var(--bg2);color:var(--mut);border:1px solid var(--line2)}
 .pbi{font-size:12px;color:var(--mut);margin-top:6px;line-height:1.55}
 .pls{margin-top:10px;display:flex;flex-direction:column;gap:7px}
@@ -455,6 +494,7 @@ footer b{color:var(--txt2);font-weight:600}
       <button data-p="planets">星球百科</button>
       <button data-p="monsters">怪物图鉴</button>
       <button data-p="merchants">商人</button>
+      <button data-p="brew">酿造学</button>
       <button data-p="anomalies">轨道目标</button>
     </div>
 
@@ -515,6 +555,15 @@ footer b{color:var(--txt2);font-weight:600}
     <span class="pcount" id="rcount"></span>
   </div>
   <div class="pgrid" id="rgrid"></div>
+</main>
+
+<main id="bview" hidden>
+  <div class="pfilter">
+    <input id="bq" type="search" autocomplete="off" placeholder="搜索材料 / 效果 / 药水">
+    <div class="pchips" id="btabs"></div>
+    <span class="pcount" id="bcount"></span>
+  </div>
+  <div id="bcontent"></div>
 </main>
 
 <main id="avview" hidden>
@@ -1324,6 +1373,214 @@ function openMonster(m){
   drawer.classList.add('on'); backdrop.classList.add('on');
   drawer.setAttribute('aria-hidden','false');
 }
+/* ================= 酿造学（Brewology） ================= */
+let BREW = D.brew || {};
+const ROMAN=['I','II','III','IV','V','VI','VII','VIII','IX','X'];
+const SBCOL={red:'#e0605c',green:'#5fbf7f',blue:'#5b9bf0',yellow:'#d9b64a',orange:'#ed9a52',
+  pink:'#ef7aa8',cyan:'#5bc8c8',white:'#e6e8ea',black:'#22262b',gray:'#9aa0a6',brown:'#b08a5a'};
+
+/* 把游戏内的 ^#RRGGBB; / ^red; 颜色标记转成 span */
+function sbHTML(s){
+  if(!s) return '';
+  const toks=String(s).split(/(\^#?[0-9a-zA-Z]+;)/g);
+  let col=null, out='';
+  for(const t of toks){
+    if(/^\^#?[0-9a-zA-Z]+;$/.test(t)){
+      const raw=t.slice(1,-1);
+      if(raw==='reset'||raw==='white0') col=null;
+      else if(raw[0]==='#') col=raw;
+      else col=SBCOL[raw.toLowerCase()]||null;
+      continue;
+    }
+    if(!t) continue;
+    const body=esc(t).replace(/\n/g,'<br>');
+    out += col ? `<span style="color:${col}">${body}</span>` : body;
+  }
+  return out;
+}
+
+/* 码表：E01 → 材料 */
+let BMAP=null, BTYPEN={};
+function brewMap(){
+  if(BMAP) return BMAP;
+  BMAP={};
+  const push=(kind,arr)=>(arr||[]).forEach(m=>{ BMAP[m.c]={kind,id:m.id,c:m.c}; });
+  push('E',BREW.E); push('M',BREW.M); push('P',BREW.P); push('S',BREW.S);
+  BTYPEN={};
+  (BREW.types||[]).forEach(t=>{ BTYPEN[t.k]=t.n; });
+  return BMAP;
+}
+function bItemName(id){
+  const i=IX[id];
+  return i!==undefined ? IT[i][1] : id;
+}
+function bMatIcon(m){
+  const i=IX[m.id];
+  if(i!==undefined && IT[i][8]>=0 && IC[IT[i][8]]) return `<img src="data:image/png;base64,${IC[IT[i][8]]}" alt="">`;
+  const ch=(bItemName(m.id)||'?').slice(0,1);
+  return `<span class="ph">${esc(ch)}</span>`;
+}
+function bImg(b64,alt){
+  return b64 ? `<img src="data:image/png;base64,${b64}" alt="${esc(alt||'')}">` : `<span class="ph">${esc((alt||'?').slice(0,1))}</span>`;
+}
+
+const bstate={sec:'over',q:''};
+const BSECS=[['over','总览'],['E','效果材料'],['M','修饰材料'],['P','聚合剂'],['S','溶剂'],
+             ['fx','状态效果'],['mods','修饰'],['uniq','特有药水']];
+function bsecCount(sec){
+  if(!BREW.n) return 0;
+  if(sec==='over') return 0;
+  if(sec==='fx') return BREW.n.fx||0;
+  if(sec==='mods') return BREW.n.mods||0;
+  if(sec==='uniq') return BREW.n.uniq||0;
+  return BREW.n[sec]||0;
+}
+function buildBrewTabs(){
+  const box=$('#btabs');
+  box.innerHTML=BSECS.map(([k,l])=>{
+    const n=bsecCount(k);
+    return `<button class="pchip${bstate.sec===k?' on':''}" data-bs="${k}">${l}${n?` <span class="tc">${n}</span>`:''}</button>`;
+  }).join('');
+  box.querySelectorAll('[data-bs]').forEach(b=>b.onclick=()=>{
+    bstate.sec=b.dataset.bs; buildBrewTabs(); renderBrew(true);
+  });
+}
+function bMatch(txt){
+  const q=bstate.q.trim().toLowerCase();
+  if(!q) return true;
+  return txt.toLowerCase().includes(q);
+}
+function bFilterNote(n,total){
+  return bstate.q ? `筛出 <b>${n}</b> / ${total} 项` : `共 ${total} 项`;
+}
+
+function matCard(kind,m){
+  const nm=bItemName(m.id);
+  let tags='';
+  if(kind==='E'){
+    tags=(m.fx||[]).map(([n,l])=> n
+      ? `<span class="btag">${esc(n)}${l?`<i>${ROMAN[l-1]||l}</i>`:''}</span>`
+      : `<span class="btag" style="opacity:.45">空槽</span>`).join('');
+  }else if(kind==='M'){
+    tags=(m.md||[]).map(([n,l])=>`<span class="btag">${esc(n)}${l?`<i>${ROMAN[l-1]||l}</i>`:''}</span>`).join('');
+  }else if(kind==='P'){
+    const b=m.b||{};
+    tags=[['drink',b.drink],['splash',b.splash],['spread',b.spread],['spray',b.spray]]
+      .filter(([k,v])=>v).map(([k,v])=>`<span class="btag num">${esc(BTYPEN[k]||k)} ×${v}</span>`).join('');
+  }else{
+    tags=`<span class="btag">${esc(BTYPEN[m.ut]||m.ut||'直饮')}</span>`
+       + `<span class="btag num">效果上限 ${m.me}</span><span class="btag num">修饰上限 ${m.mm}</span>`;
+  }
+  const col=m.col?`<span class="bcode" style="background:#${esc(m.col)}22;border-color:#${esc(m.col)}55;color:#${esc(m.col)}">${esc(m.c)}</span>`
+                  :`<span class="bcode">${esc(m.c)}</span>`;
+  return `<article class="bcard">
+    <div class="bhd"><div class="bico">${bMatIcon(m)}</div>
+      <div><h4>${esc(nm)}${col}</h4></div></div>
+    <div class="btags">${tags||'<span class="btag" style="opacity:.5">无附加属性</span>'}</div>
+    <p class="bd">${sbHTML(m.d)}</p>
+  </article>`;
+}
+
+function fxCard(e){
+  const rows=(e.t||[]).map((r,i)=>`<tr><td>${ROMAN[i]||i+1}</td>${r.map(v=>`<td>${v}s</td>`).join('')}</tr>`).join('');
+  return `<article class="bcard">
+    <div class="bhd"><div class="bico">${bImg(e.i,e.n)}</div>
+      <div><h4>${esc(e.n)}</h4></div></div>
+    ${rows?`<table class="bmini"><thead><tr><th>等级</th><th>直饮</th><th>喷溅</th><th>扩散</th><th>喷雾</th></tr></thead><tbody>${rows}</tbody></table>`:''}
+    <p class="bd">${sbHTML(e.d)}</p>
+  </article>`;
+}
+
+function modCard(m){
+  return `<article class="bcard">
+    <div class="bhd"><div class="bico">${bImg(m.i,m.n)}</div>
+      <div><h4>${esc(m.n)}</h4></div></div>
+    <p class="bd">${sbHTML(m.d)}</p>
+    ${m.r?`<details class="bdet"><summary>按药水形态说明 ›</summary><p>${sbHTML(m.r)}</p></details>`:''}
+  </article>`;
+}
+
+function uniqCard(u){
+  const bm=brewMap();
+  const steps=(u.st||[]).map(([k,c])=>{
+    if(k==='STIR') return `<span class="bstir">搅拌</span>`;
+    const m=c?bm[c]:null;
+    const nm=m?bItemName(m.id):c;
+    const i=m?IX[m.id]:undefined;
+    const ico=i!==undefined?iconHTML(i):`<span class="ph">?</span>`;
+    return `<span class="bch">${ico}${esc(nm)}<em>${esc(c)}</em></span>`;
+  }).join('');
+  const i=IX[u.id];
+  const ico=i!==undefined?iconHTML(i):`<span class="ph">?</span>`;
+  return `<article class="bcard">
+    <div class="bhd"><div class="bico">${ico}</div>
+      <div><h4>${esc(bItemName(u.id))}</h4></div></div>
+    <p class="bd">${sbHTML(u.d)}</p>
+    ${steps?`<div class="bsteps">${steps}</div>`:`<div class="blegend" style="margin:0">这瓶药水没有固定配方，只能通过其他途径获得。</div>`}
+    ${u.m?`<details class="bdet"><summary>手稿记载 ›</summary><p>${sbHTML(u.m)}</p></details>`:''}
+  </article>`;
+}
+
+function brewOverview(){
+  const n=BREW.n||{};
+  const flow=[
+    ['① 选溶剂','决定药水的使用形态：直饮 / 喷溅 / 扩散 / 喷雾。溶剂同时决定能放几份效果材料与修饰。'],
+    ['② 投效果材料','每份效果材料给成品一条状态，材料本身带有等级（I–V），同一材料最多提供 5 种可能。'],
+    ['③ 加修饰','改变药水的作用方式：更快、更远、只打敌人、留下气云等，不改变效果本身。'],
+    ['④ 搅拌定型','每次搅拌推进一格，顺序会改变最终产物；投聚合剂决定一锅能灌几瓶。'],
+  ];
+  const steps=flow.map(([t,d],i)=>`<div class="bstep"><em>${String(i+1).padStart(2,'0')}</em><h5>${t}</h5><p>${d}</p></div>`).join('');
+  const types=(BREW.types||[]).map(t=>`<article class="bcard">
+      <div class="bhd"><div class="bico">${bImg(t.i,t.n)}</div><div><h4>${esc(t.n)}</h4></div></div>
+      <p class="bd">${sbHTML(t.d)}</p>
+      ${t.r?`<details class="bdet"><summary>使用细节 ›</summary><p>${sbHTML(t.r)}</p></details>`:''}
+    </article>`).join('');
+  const stat=[['效果材料',n.E],['修饰材料',n.M],['聚合剂',n.P],['溶剂',n.S],['状态效果',n.fx],['修饰',n.mods],['特有药水',n.uniq]]
+    .filter(([,v])=>v).map(([k,v])=>`<span class="btag num">${k} ${v}</span>`).join('');
+  return `<div class="dsec psec" style="margin-top:14px"><h4>一锅药水的四个步骤</h4>
+      <div class="bflow">${steps}</div>
+      <p class="blegend">酿造在<b>巫师的大釜</b>里进行：先倒溶剂，再依次投入材料并搅拌。同样的材料换个顺序就是另一种药水，所以下面每一份材料都值得记住编号。</p>
+    </div>
+    <div class="dsec psec"><h4>四种药水形态</h4><div class="bsect">${types}</div></div>
+    <div class="dsec psec"><h4>收录规模</h4><div class="btags">${stat}</div></div>`;
+}
+
+function renderBrew(reset){
+  if(!BREW || !BREW.types){ $('#bcontent').innerHTML='<div class="empty">正在载入酿造数据…</div>'; return; }
+  brewMap();
+  const c=$('#bcontent'), sec=bstate.sec;
+  if(sec==='over'){
+    c.innerHTML=brewOverview();
+    $('#bcount').textContent='酿造学 · 来自 Brewology 模组';
+    return;
+  }
+  let list=[], kind=sec;
+  if(sec==='fx') list=(BREW.fx||[]).filter(e=>bMatch(e.n+' '+((e.d||'').replace(/\^[^;]*;/g,''))));
+  else if(sec==='mods') list=(BREW.mods||[]).filter(e=>bMatch(e.n+' '+((e.d||'').replace(/\^[^;]*;/g,''))));
+  else if(sec==='uniq') list=(BREW.uniq||[]).filter(u=>bMatch(bItemName(u.id)+' '+((u.d||'').replace(/\^[^;]*;/g,''))));
+  else list=(BREW[kind]||[]).filter(m=>bMatch(bItemName(m.id)+' '+(m.c||'')+' '+((m.d||'').replace(/\^[^;]*;/g,''))));
+
+  const total=sec==='fx'?(BREW.fx||[]).length:sec==='mods'?(BREW.mods||[]).length:
+              sec==='uniq'?(BREW.uniq||[]).length:(BREW[kind]||[]).length;
+  const intro={
+    E:'效果材料决定药水的状态。同一份材料在搅拌到不同深度时会给出不同的效果与等级，所以下表按“第 1 次到第 5 次”排列。',
+    M:'修饰材料只改变药水的行为方式（速度、范围、选择性），不影响效果池。',
+    P:'投放聚合剂决定一锅药水能灌出几瓶，不同形态的产量并不相同。',
+    S:'溶剂是所有药水的基底，决定成品形态与容量上限。',
+    fx:'这些是酿造能给出的状态，等级越高效果越强、持续时间越长。表格为各形态下的持续时间。',
+    mods:'修饰效果加在药水上，改变使用方式而非效果本身。',
+    uniq:'带有固定配方的特有药水，按顺序投料即可复现。'
+  }[sec];
+  let body='';
+  if(kind==='fx') body=list.map(fxCard).join('');
+  else if(kind==='mods') body=list.map(modCard).join('');
+  else if(kind==='uniq') body=list.map(uniqCard).join('');
+  else body=list.map(m=>matCard(kind,m)).join('');
+  c.innerHTML=`<p class="blegend" style="margin:12px 0 0">${intro}</p>`
+    +(list.length?`<div class="bsect">${body}</div>`:`<div class="empty">没有匹配的条目</div>`);
+  $('#bcount').innerHTML=bFilterNote(list.length,total);
+}
+
 function setPage(pg){
   state.page=pg;
   document.querySelectorAll('#pagebar button').forEach(b=>b.classList.toggle('on',b.dataset.p===pg));
@@ -1334,6 +1591,7 @@ function setPage(pg){
   $('#mview').hidden = pg!=='monsters';
   $('#rvview').hidden = pg!=='merchants';
   $('#avview').hidden = pg!=='anomalies';
+  $('#bview').hidden = pg!=='brew';
   // 物品侧的搜索框、模式切换、排序与筛选栏，在星球页一并收起
   document.querySelector('.searchrow').hidden = !isItems;
   $('#filters').hidden = !isItems;
@@ -1342,6 +1600,7 @@ function setPage(pg){
   if(pg==='monsters'){ buildMonsterTabs(); renderMonsters(true); }
   if(pg==='merchants'){ buildMerchantTabs(); renderMerchants(true); }
   if(pg==='anomalies'){ buildAnoTabs(); renderAnomalies(true); }
+  if(pg==='brew'){ buildBrewTabs(); renderBrew(true); }
 }
 document.querySelectorAll('#pagebar button').forEach(b=>b.onclick=()=>setPage(b.dataset.p));
 pgrid.addEventListener('click',e=>{
@@ -1358,6 +1617,7 @@ mgrid.addEventListener('click',e=>{
 });
 $('#pq').oninput=e=>{ pstate.q=e.target.value; renderPlanets(true); };
 $('#mq').oninput=e=>{ mstate.q=e.target.value; renderMonsters(true); };
+$('#bq').oninput=e=>{ bstate.q=e.target.value; renderBrew(true); };
 
 
 /* ---------- 商人 ---------- */
@@ -1872,6 +2132,8 @@ if(!PART.world){
   if(r) r.innerHTML='<div class="empty" style="grid-column:1/-1">正在载入商人数据…</div>';
   const a=document.getElementById('agrid');
   if(a) a.innerHTML='<div class="empty" style="grid-column:1/-1">正在载入轨道目标…</div>';
+  const b=document.getElementById('bcontent');
+  if(b) b.innerHTML='<div class="empty">正在载入酿造数据…</div>';
 }
 function applyPart(name){
   PART[name]=true;
@@ -1882,11 +2144,12 @@ function applyPart(name){
     if(state.page==='monsters') renderMonsters(true);
   }else{
     PL=D.planets||[]; MON=D.monsters||[]; MER=D.merchants||[]; WI=D.weatherInfo||{};
-    ANO=D.anomalies||[]; AIC=D.aIcons||[];
+    ANO=D.anomalies||[]; AIC=D.aIcons||[]; BREW=D.brew||{};
     if(state.page==='planets'){ buildPlanetTabs(); renderPlanets(true); }
     if(state.page==='monsters'){ buildMonsterTabs(); renderMonsters(true); }
     if(state.page==='merchants'){ buildMerchantTabs(); renderMerchants(true); }
     if(state.page==='anomalies'){ buildAnoTabs(); renderAnomalies(true); }
+    if(state.page==='brew'){ buildBrewTabs(); renderBrew(true); }
   }
 }
 if(!PART.icons) loadPart('icons','data/icons.js').then(ok=>{ if(ok) applyPart('icons'); });
