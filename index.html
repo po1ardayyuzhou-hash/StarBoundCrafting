@@ -226,11 +226,23 @@ html[data-theme="dark"] .pst.env{color:#ed9a52;background:#2a1d10;border-color:#
 .lvb.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
 .lvb i{font-style:normal;font-size:11px;opacity:.62}
 .lvn{font-size:11.5px;color:var(--mut);margin-top:9px;line-height:1.6}
+.wlist{display:flex;flex-direction:column;gap:8px}
+.wrow{border:1px solid var(--line2);border-radius:9px;padding:8px 11px;background:var(--bg2)}
+.whd{display:flex;align-items:center;gap:8px;font-size:13px}
+.whd b{font-weight:600;color:var(--txt)}
+.whd i{font-style:normal;font-size:11.5px;color:var(--mut)}
+.wdg{margin-left:auto;font-size:10.5px;padding:1px 7px;border-radius:20px;border:1px solid;line-height:1.6}
+.wrow[data-d="0"] .wdg{color:#3f8f63;border-color:#3f8f6355;background:#3f8f6312}
+.wrow[data-d="1"] .wdg{color:#c08a2e;border-color:#c08a2e55;background:#c08a2e12}
+.wrow[data-d="2"] .wdg{color:#c4553f;border-color:#c4553f55;background:#c4553f12}
+.wdesc{font-size:11.5px;color:var(--mut);margin-top:5px;line-height:1.6}
 .mgroup+.mgroup{margin-top:13px}
 .mghead{font-size:11.5px;color:var(--mut);margin-bottom:7px;display:flex;align-items:center;gap:6px}
 .mghead:before{content:'';width:2px;height:11px;border-radius:1px;background:var(--line)}
 .mgroup:first-child .mghead:before{background:var(--accent)}
 .mghead em{font-style:normal;opacity:.7}
+.och[data-oi]{cursor:pointer;transition:.12s}
+.och[data-oi]:hover{border-color:color-mix(in srgb,var(--accent) 55%,var(--line2));color:var(--txt);background:var(--card)}
 .och[data-r]{border-color:color-mix(in srgb,var(--rc) 45%,var(--line2));
   background:color-mix(in srgb,var(--rc) 9%,var(--bg2));color:color-mix(in srgb,var(--rc) 78%,var(--txt))}
 .rarleg{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:11.5px;color:var(--mut)}
@@ -308,6 +320,9 @@ html[data-theme="dark"] .ico[data-r="legendary"],html[data-theme="dark"] .ico[da
 .ing .ph{width:17px;height:17px;border-radius:4px;display:grid;place-items:center;font-size:9px;font-weight:700}
 .ing em{font-style:normal;color:var(--mut);font-size:11px;font-weight:600}
 .ing .nm{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ing[data-r]{border-color:color-mix(in srgb,var(--rc) 38%,var(--line2));
+  background:color-mix(in srgb,var(--rc) 8%,var(--bg2))}
+.ing[data-oi]{cursor:pointer}
 .tag{font-size:10.5px;padding:1px 6px;border-radius:5px;background:var(--bg2);color:var(--mut);border:1px solid var(--line2)}
 .tag.src{color:var(--blue);background:var(--blue-soft);border-color:transparent}
 
@@ -425,6 +440,7 @@ footer b{color:var(--txt2);font-weight:600}
       <button data-p="items" class="on">物品 / 配方</button>
       <button data-p="planets">星球百科</button>
       <button data-p="monsters">怪物图鉴</button>
+      <button data-p="merchants">商人</button>
     </div>
 
     <div class="searchrow">
@@ -477,6 +493,15 @@ footer b{color:var(--txt2);font-weight:600}
   <div class="pgrid" id="pgrid"></div>
 </main>
 
+<main id="rvview" hidden>
+  <div class="pfilter">
+    <input id="rq" type="search" autocomplete="off" placeholder="搜索商人名 / 商品名">
+    <div class="pchips" id="rtabs"></div>
+    <span class="pcount" id="rcount"></span>
+  </div>
+  <div class="pgrid" id="rgrid"></div>
+</main>
+
 <main id="lview">
   <div id="list" class="grid"></div>
   <div id="morewrap"></div>
@@ -511,6 +536,8 @@ const D = window.SB || JSON.parse(_el ? _el.textContent : '{}');
 const IT = D.items || [], R = D.recipes || [], ST = D.stations || [], CA = D.cats || [], SR = D.srcs || [];
 let IC = D.icons || [], PIC = D.pIcons || [];          // 拆分版稍后到达
 let PL = D.planets || [], MON = D.monsters || [];       // 同上
+let MER = D.merchants || [];                            // 商人（随 world 加载）
+let WI = D.weatherInfo || {};                           // 天气效果（同上）
 const THR_NAME=['无害','低危','中等','高风险','危险','极端','致命','不可能','无法估量','免谈'];
 const MCAT={walkers:'步行',flyers:'飞行',critter:'小动物',bugs:'虫类',crawlers:'爬行',
   segmented:'多节',boss:'头目',pets:'宠物',fish:'鱼类',fishing:'鱼类',space:'太空',
@@ -987,6 +1014,21 @@ function chipList(items, limit, key){
   }
   return html;
 }
+/* 天气效果文案：由持续时间、落体伤害、风力、雷电、附加状态拼成 */
+function wDesc(w){
+  const [lo,hi,pw,st,wind,lt]=w;
+  const a=[];
+  if(hi && hi>lo) a.push(`持续 ${lo}~${hi} 秒`);
+  else if(hi) a.push(`持续 ${lo} 秒`);
+  if(pw>=10) a.push(`落体造成 ${pw} 点伤害`);
+  else if(pw>0) a.push(`落体造成 ${pw} 点轻微伤害`);
+  if(lt>0) a.push('伴随雷电');
+  if(wind>=25) a.push(`强风 ${wind}（影响移动与弹道）`);
+  else if(wind>=5) a.push(`风力 ${wind}`);
+  if(st&&st.length) a.push('附加 '+st.join('、'));
+  return a.join(' · ') || '仅影响视野，不造成伤害';
+}
+
 function openPlanet(p, keep){
   curP=p;
   if(!keep) pExpand={mob:false,biome:false};
@@ -1040,7 +1082,7 @@ function openPlanet(p, keep){
   const inOrbit=shown.filter(([,o])=>!o.planet);        // 仅存在于太空小行星
   const chip=([id,o])=>{
     const r=rarOf(id);
-    return `<span class="och"${r?` data-r="${r}"`:''}>${esc(o.name)}</span>`;
+    return `<span class="ing" data-oi="${id}" title="查看配方与获取途径"${r?` data-r="${r}"`:''}>${iconHTML(id)}<span class="nm">${esc(o.name)}</span></span>`;
   };
   const rset=new Set(shown.map(([id])=>rarOf(id)||'none'));
   h+=`<div class="dsec psec"><h4>矿产 · ${shown.length}</h4>`;
@@ -1069,11 +1111,19 @@ function openPlanet(p, keep){
     : `<div class="none">该类型没有核心层。</div>`;
   h+=`</div>`;
 
-  /* 天气 */
-  h+=`<div class="dsec psec"><h4>天气 · ${(p.weather||[]).length}</h4>`;
-  h+= (p.weather||[]).length
-    ? `<div class="pbl">${p.weather.map(([n])=>`<span class="bchip">${esc(n)}</span>`).join('')}</div>`
-    : `<div class="none">几乎没有天气变化。</div>`;
+  /* 天气：名称 + 出现概率 + 效果说明 */
+  const wlist=p.weather||[];
+  h+=`<div class="dsec psec"><h4>天气 · ${wlist.length}</h4>`;
+  if(!wlist.length) h+=`<div class="none">几乎没有天气变化。</div>`;
+  else h+=`<div class="wlist">${wlist.map(([nm,ch])=>{
+    const w=WI[nm];
+    const dg=w?w[6]:-1;
+    return `<div class="wrow"${dg>=0?` data-d="${dg}"`:''}>
+      <div class="whd"><b>${esc(nm)}</b><i>${ch}%</i>${dg>=0?`<span class="wdg">${['低','中','高'][dg]}</span>`:''}</div>
+      <div class="wdesc">${esc(w?wDesc(w):'暂无该天气的效果数据')}</div>
+    </div>`;
+  }).join('')}</div>`;
+  h+=`<div class="lvn">百分比为该类型星球上出现各天气的相对占比；危险度取决于附加状态与落体伤害。</div>`;
   h+=`</div>`;
 
   /* 群系 */
@@ -1092,6 +1142,7 @@ function openPlanet(p, keep){
     curLv=+b.dataset.lv;
     openPlanet(curP, true);
   });
+  dbody.querySelectorAll('[data-oi]').forEach(b=>b.onclick=()=>openDrawer(+b.dataset.oi));
   dbody.scrollTop=0;
   drawer.classList.add('on'); backdrop.classList.add('on');
   drawer.setAttribute('aria-hidden','false');
@@ -1220,12 +1271,14 @@ function setPage(pg){
   $('#lview').hidden = !isItems;
   $('#pview').hidden = pg!=='planets';
   $('#mview').hidden = pg!=='monsters';
+  $('#rvview').hidden = pg!=='merchants';
   // 物品侧的搜索框、模式切换、排序与筛选栏，在星球页一并收起
   document.querySelector('.searchrow').hidden = !isItems;
   $('#filters').hidden = !isItems;
   $('#active').hidden = !isItems;
   if(pg==='planets'){ buildPlanetTabs(); renderPlanets(true); }
   if(pg==='monsters'){ buildMonsterTabs(); renderMonsters(true); }
+  if(pg==='merchants'){ buildMerchantTabs(); renderMerchants(true); }
 }
 document.querySelectorAll('#pagebar button').forEach(b=>b.onclick=()=>setPage(b.dataset.p));
 pgrid.addEventListener('click',e=>{
@@ -1242,6 +1295,135 @@ mgrid.addEventListener('click',e=>{
 });
 $('#pq').oninput=e=>{ pstate.q=e.target.value; renderPlanets(true); };
 $('#mq').oninput=e=>{ mstate.q=e.target.value; renderMonsters(true); };
+
+
+/* ---------- 商人 ---------- */
+const rstate={q:'',src:'',shown:0};
+const PAGE_R=24;
+const rgrid=$('#rgrid'), rcount=$('#rcount');
+
+function merCard(m){
+  const [id,name,src,num,,,items]=m;
+  const col=PALETTE[ihash(name||id)%PALETTE.length];
+  const pre=items.slice(0,3).map(x=>x[1]).join(' · ');
+  return `<article class="pcard" data-rid="${esc(id)}">
+    <div class="pthumb"><span class="mchar" style="background:${col}22;color:${col}">${esc((name||'?').slice(0,1))}</span></div>
+    <div class="pwrap">
+      <div class="phd"><h3>${esc(name)}</h3>${src?'<span class="psrc">模组</span>':''}</div>
+      <div class="pbi">${pre?esc(pre)+(items.length>3?` 等 ${items.length} 种`:''):'—'}</div>
+      <div class="pstats">
+        <span class="pst"><b>${items.length}</b> 种商品</span>
+        ${num?`<span class="pst"><b>${num}</b> 件在售</span>`:''}
+      </div>
+      <span class="pgo">查看货架 ›</span>
+    </div>
+  </article>`;
+}
+function merList(){
+  const q=rstate.q.trim().toLowerCase();
+  return MER.filter(m=>{
+    if(rstate.src!=='' && String(m[2])!==rstate.src) return false;
+    if(!q) return true;
+    if(String(m[1]).toLowerCase().includes(q) || m[0].toLowerCase().includes(q)) return true;
+    return m[6].some(x=>String(x[1]).toLowerCase().includes(q));
+  }).sort((a,b)=>{
+    if(a[2]!==b[2]) return a[2]-b[2];
+    if(b[6].length!==a[6].length) return b[6].length-a[6].length;
+    return String(a[1]).localeCompare(String(b[1]),'zh');
+  });
+}
+function renderMerchants(reset){
+  if(reset) rstate.shown=0;
+  const all=merList();
+  const batch=all.slice(rstate.shown, rstate.shown+PAGE_R);
+  rstate.shown+=batch.length;
+  if(reset) rgrid.innerHTML=batch.map(merCard).join('') ||
+    `<div class="empty" style="grid-column:1/-1"><div class="big">🧺</div>没有匹配的商人</div>`;
+  else rgrid.insertAdjacentHTML('beforeend', batch.map(merCard).join(''));
+  rcount.innerHTML=`共 <b>${all.length}</b> 个商人 · 商品池为该商人可能出售的全部物品`;
+  let more=document.getElementById('rmore');
+  if(rstate.shown<all.length){
+    if(!more){
+      more=document.createElement('button'); more.id='rmore'; more.className='morep';
+      more.onclick=()=>renderMerchants(false); rgrid.after(more);
+    }
+    more.textContent=`加载更多（还有 ${all.length-rstate.shown} 个）`;
+  }else if(more) more.remove();
+}
+function buildMerchantTabs(){
+  const n0=MER.filter(m=>m[2]===0).length, n1=MER.length-n0;
+  const mk=(v,label,n)=>`<button class="pchip${rstate.src===v?' on':''}" data-src="${v}">${label} ${n}</button>`;
+  $('#rtabs').innerHTML=mk('','全部',MER.length)+mk('0','本体',n0)+(n1?mk('1','模组',n1):'');
+  $('#rtabs').querySelectorAll('[data-src]').forEach(b=>b.onclick=()=>{
+    rstate.src=b.dataset.src; buildMerchantTabs(); renderMerchants(true);
+  });
+}
+function openMerchant(m){
+  const [id,name,src,num,buy,sell,items,cats]=m;
+  const col=PALETTE[ihash(name||id)%PALETTE.length];
+  di.innerHTML=`<span class="mchar" style="background:${col}22;color:${col}">${esc((name||'?').slice(0,1))}</span>`;
+  delete di.dataset.r;
+  dn.textContent=name;
+  did.textContent=id;
+  db.innerHTML=[
+    `<span class="badge">${src?'模组':'本体'}</span>`,
+    num?`<span class="badge">同时上架 ${num} 件</span>`:''
+  ].filter(Boolean).join('');
+
+  let h='';
+  h+=`<div class="dsec psec"><h4>商品 · ${items.length}</h4>`;
+  if(!items.length) h+=`<div class="none">该商人没有可售商品。</div>`;
+  else{
+    const CAP=60;
+    const chip=([i,nm])=>{
+      const it=IT[i];
+      return `<span class="ing" data-mitem="${esc(it[0])}">${iconHTML(i)}<span class="nm">${esc(nm)}</span></span>`;
+    };
+    h+=`<div class="pbl" id="mrlist">${items.slice(0,CAP).map(chip).join('')}</div>`;
+    if(items.length>CAP)
+      h+=`<button class="morep" id="mrmore" style="margin-top:10px">展开其余 ${items.length-CAP} 种</button>`;
+  }
+  h+=`</div>`;
+
+  h+=`<div class="dsec psec"><h4>交易系数</h4>
+    <div class="mgroup"><div class="mghead">玩家买入<em>×${buy[0]} ~ ×${buy[1]}</em></div></div>
+    <div class="mgroup"><div class="mghead">玩家卖出<em>×${sell[0]} ~ ×${sell[1]}</em></div></div>
+    <div class="lvn">系数乘在物品基础价格上。商人每次从 ${cats.length} 个商品池中随机抽取${num?` ${num} 件`:''}上架，刷新后商品会变。</div></div>`;
+
+  h+=`<div class="dsec psec"><h4>商品池 · ${cats.length}</h4>`;
+  h+=`<div class="pbl">${cats.map(k=>`<span class="bchip">${esc(k)}</span>`).join('')}</div></div>`;
+
+  h+=`<div class="pfoot">商品池来自 /npcs/merchantpools.config（按类别加权抽取），商人配置来自 /npcs/*.npctype 的 scriptConfig.merchant。所列为一个商人可能出售的全部物品，实际每次只上架其中一部分。</div>`;
+
+  dbody.innerHTML=h;
+  const bindChips=()=>dbody.querySelectorAll('[data-mitem]:not([data-bound])').forEach(el=>{
+    const k=IX[el.dataset.mitem];
+    el.dataset.bound='1';
+    if(k!==undefined) el.onclick=()=>openDrawer(k);
+  });
+  bindChips();
+  const mrMore=$('#mrmore');
+  if(mrMore) mrMore.onclick=()=>{
+    const CAP=60;
+    $('#mrlist').insertAdjacentHTML('beforeend',
+      items.slice(CAP).map(([i,nm])=>{
+        const it=IT[i];
+        return `<span class="ing" data-mitem="${esc(it[0])}">${iconHTML(i)}<span class="nm">${esc(nm)}</span></span>`;
+      }).join(''));
+    bindChips(); mrMore.remove();
+  };
+  dbody.scrollTop=0;
+  drawer.classList.add('on'); backdrop.classList.add('on');
+  drawer.setAttribute('aria-hidden','false');
+}
+
+$('#rq').oninput=e=>{ rstate.q=e.target.value; renderMerchants(true); };
+rgrid.addEventListener('click',e=>{
+  const card=e.target.closest('[data-rid]');
+  if(!card) return;
+  const m=MER.find(x=>x[0]===card.dataset.rid);
+  if(m) openMerchant(m);
+});
 
 /* ---------- 抽屉 ---------- */
 const drawer=$('#drawer'), backdrop=$('#backdrop');
@@ -1452,7 +1634,7 @@ function refreshIcons(){
   document.querySelectorAll('.ph').forEach(el=>{
     let idx;
     const ing=el.closest('.ing');
-    if(ing) idx=+ing.dataset.i;
+    if(ing) idx = ing.dataset.i!=null ? +ing.dataset.i : +ing.dataset.oi;   // 配料芯片用 data-i，矿产芯片用 data-oi
     else{ const card=el.closest('[data-i]'); if(card) idx=+card.dataset.i; }   // 卡片上是物品索引，不是 ID
     if(idx==null || isNaN(idx)) return;
     const it=IT[idx]; if(!it || !(it[8]>=0) || !IC[it[8]]) return;
@@ -1467,6 +1649,8 @@ if(!PART.world){
   const g=document.getElementById('pgrid'), m=document.getElementById('mgrid');
   if(g) g.innerHTML='<div class="empty" style="grid-column:1/-1">正在载入星球数据…</div>';
   if(m) m.innerHTML='<div class="empty" style="grid-column:1/-1">正在载入怪物数据…</div>';
+  const r=document.getElementById('rgrid');
+  if(r) r.innerHTML='<div class="empty" style="grid-column:1/-1">正在载入商人数据…</div>';
 }
 function applyPart(name){
   PART[name]=true;
@@ -1476,9 +1660,10 @@ function applyPart(name){
     if(state.page==='planets') renderPlanets(true);
     if(state.page==='monsters') renderMonsters(true);
   }else{
-    PL=D.planets||[]; MON=D.monsters||[];
+    PL=D.planets||[]; MON=D.monsters||[]; MER=D.merchants||[]; WI=D.weatherInfo||{};
     if(state.page==='planets'){ buildPlanetTabs(); renderPlanets(true); }
     if(state.page==='monsters'){ buildMonsterTabs(); renderMonsters(true); }
+    if(state.page==='merchants'){ buildMerchantTabs(); renderMerchants(true); }
   }
 }
 if(!PART.icons) loadPart('icons','data/icons.js').then(ok=>{ if(ok) applyPart('icons'); });
