@@ -205,6 +205,12 @@ html[data-theme="dark"] .thr[data-t="10"],.pball[data-t="10"],.thrtag[data-t="10
   border:1px solid color-mix(in srgb,var(--tc) 30%,transparent)}
 .thrtag b{font-family:ui-monospace,monospace;font-size:10.5px;opacity:.85}
 .thrtag i{font-style:normal;font-size:10px;opacity:.65;letter-spacing:.02em}
+.pst.liq b{color:#2b83b8}
+.pst.liq i{font-style:normal;color:#c06a12;margin-left:2px}
+html[data-theme="dark"] .pst.liq b{color:#74c6ef}
+.atmrow{margin-top:6px}
+.atmhd{font-size:11.5px;color:var(--mut);margin:0 0 4px}
+.atmhd i{font-style:normal;font-family:ui-monospace,monospace;color:var(--txt2);margin-left:4px}
 /* ---------- 酿造学 ---------- */
 .bsect{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-top:14px}
 .bcard{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:13px 14px;
@@ -612,6 +618,7 @@ let PL = D.planets || [], MON = D.monsters || [];       // 同上
 let MER = D.merchants || [];                            // 商人（随 world 加载）
 let WI = D.weatherInfo || {};                           // 天气效果（同上）
 let ANO = D.anomalies || [], AIC = D.aIcons || [];      // 轨道目标（同上）
+let LC = D.liqCollect || {};                            // 液体收集器（随 world 加载）
 const THR_NAME=['无害','低危','中等','高风险','危险','极端','致命','不可能','无法估量','免谈'];
 const THR_ROMAN=['I','II','III','IV','V','VI','VII','VIII','IX','X'];
 const THR_FULL=THR_NAME.map((n,i)=>`${n}（${THR_ROMAN[i]}）`);
@@ -1019,6 +1026,35 @@ function thrLabel(p){
   if(a+1===b) return `威胁 ${a}–${b} · ${THR_NAME[a-1]}–${THR_NAME[b-1]}`;
   return `威胁 ${a}–${b}`;
 }
+/* 液体收集器：产物由 world.type() 决定，按星球类型查表 */
+function liqRec(pid, mi){
+  if(!LC.machines) return null;
+  const tbl=(LC.tables&&LC.tables[mi])||{};
+  const r=tbl[pid]||((LC.defaults||[])[mi]);
+  if(!r || r[0]==null) return null;
+  return {idx:r[0], cd:r[1], special:!!tbl[pid], m:LC.machines[mi]};
+}
+function liqName(pid, mi){
+  const r=liqRec(pid,mi);
+  return r && IT[r.idx] ? IT[r.idx][1] : '';
+}
+/* 空气冷凝器：[[权重,[物品索引…]]…] 加权随机池；别名先解析到实体键 */
+function atmRec(pid){
+  if(!LC.machines || !LC.tables || !LC.tables[2]) return null;
+  const al=LC.atmAlias||{};
+  let key=pid;
+  while(al[key] && key!==al[key]) key=al[key];
+  const pools=LC.tables[2][key]||LC.defaults[2];
+  if(!pools || !pools.length) return null;
+  return {pools, special:!!LC.tables[2][key]};
+}
+const ATM_W=[['常见',79],['少见',20],['稀有',1]];
+function atmSummary(pid){
+  const r=atmRec(pid);
+  if(!r) return '';
+  const n=r.pools.reduce((s,[w,items])=>s+items.length,0);
+  return `${n} 种试剂`;
+}
 function planetCard(p){
   const nm=p.biomes.slice(0,4).map(esc).join(' · ');
   const biomes = p.biomes.length
@@ -1043,6 +1079,8 @@ function planetCard(p){
       <div class="pstats">
         <span class="pst"><b>${nOre}</b> 种矿</span>
         <span class="pst"><b>${nW}</b> 种天气</span>
+        ${liqName(p.id,0)?`<span class="pst liq" title="液体收集器在此星球冷凝出的液体">液体 <b>${esc(liqName(p.id,0))}</b>${liqRec(p.id,0).special?'<i>*</i>':''}</span>`:''}
+        ${atmSummary(p.id)?`<span class="pst liq" title="空气冷凝器在此星球可凝出的试剂池">空气 <b>${esc(atmSummary(p.id))}</b></span>`:''}
         ${env.length?`<span class="pst env">${env.map(esc).join(' · ')}</span>`:''}
       </div>
       <span class="pgo">查看档案 ›</span>
@@ -1235,6 +1273,44 @@ function openPlanet(p, keep){
   }).join('')}</div>`;
   h+=`<div class="lvn">百分比为该类型星球上出现各天气的相对占比；危险度取决于附加状态与落体伤害。</div>`;
   h+=`</div>`;
+
+  /* 液体收集 / 冷凝：产物由 world.type() 决定，属于星球环境属性 */
+  if(LC.machines && LC.machines.length){
+    h+=`<div class="dsec psec"><h4>液体收集 / 冷凝</h4>
+      <div class="lvn">这类机器的产物由 <b>星球类型</b> 决定，不是固定配方，因此收录在这里而不是合成表。</div>`;
+    LC.machines.forEach((m,mi)=>{
+      if(mi===2){   /* 空气冷凝器：加权随机试剂池 */
+        const r=atmRec(p.id);
+        if(!r) return;
+        h+=`<div class="mgroup">
+          <div class="mghead">${esc(m.name)}<em>${esc(m.src)} · ${esc(m.power)} · ${r.special?'该星球专属池':'默认池'}</em></div>`;
+        r.pools.forEach(([w,items],pi)=>{
+          const [wn,wv]=ATM_W[pi]||['档位'+(pi+1),w];
+          h+=`<div class="atmrow"><div class="atmhd">${esc(wn)} <i>${wv}%</i></div>
+            <div class="pbl">${items.filter(i=>i!=null).map(i=>
+              `<span class="ing" data-oi="${i}" title="查看物品详情">${iconHTML(i)}<span class="nm">${esc(IT[i][1])}</span></span>`).join('')}</div></div>`;
+        });
+        h+=`<div class="lvn" style="margin-top:5px">${esc(m.desc)}</div></div>`;
+        return;
+      }
+      const r=liqRec(p.id,mi);
+      if(!r) return;
+      const nm=IT[r.idx]?IT[r.idx][1]:'?';
+      const rate=mi===0
+        ? (r.cd?`每 ${r.cd} 秒产出 0.5 单位`:'按冷却时间产出')
+        : '每轮产出 5 单位';
+      h+=`<div class="mgroup">
+        <div class="mghead">${esc(m.name)}<em>${esc(m.src)} · ${esc(m.power)}</em></div>
+        <div class="pbl">
+          <span class="ing" data-oi="${r.idx}" title="查看物品详情">${iconHTML(r.idx)}<span class="nm">${esc(nm)}</span></span>
+          <span class="bchip">${r.special?'该星球专属':'默认产物'}</span>
+          <span class="bchip">${esc(rate)}</span>
+        </div>
+        <div class="lvn" style="margin-top:5px">${esc(m.desc)}</div>
+      </div>`;
+    });
+    h+=`</div>`;
+  }
 
   /* 群系 */
   h+=`<div class="dsec psec"><h4>群系 · ${(p.biomes||[]).length}</h4><div class="pbl">${
@@ -2144,7 +2220,7 @@ function applyPart(name){
     if(state.page==='monsters') renderMonsters(true);
   }else{
     PL=D.planets||[]; MON=D.monsters||[]; MER=D.merchants||[]; WI=D.weatherInfo||{};
-    ANO=D.anomalies||[]; AIC=D.aIcons||[]; BREW=D.brew||{};
+    ANO=D.anomalies||[]; AIC=D.aIcons||[]; BREW=D.brew||{}; LC=D.liqCollect||{};
     if(state.page==='planets'){ buildPlanetTabs(); renderPlanets(true); }
     if(state.page==='monsters'){ buildMonsterTabs(); renderMonsters(true); }
     if(state.page==='merchants'){ buildMerchantTabs(); renderMerchants(true); }
