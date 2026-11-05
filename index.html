@@ -187,6 +187,20 @@ select{
 .gfoot code{background:var(--bg);padding:1px 4px;border-radius:4px;font-size:11px}
 .expchip{color:#6b5b95;background:#f1eef9;border-color:#d9d2ec}
 .expchip b{color:#5a4a86}
+/* 防护背包 / EPP 模块 */
+.ecard{cursor:pointer}
+.efchip{color:#2f6f6b;background:#eaf5f4;border-color:#cde6e3}
+.efchip b{font-weight:700;margin-left:3px;color:#1f5a57}
+.efchip.imm{color:#2b5f9e;background:#eaf1fa;border-color:#cfe0f2}
+.efchip.imm b{color:#1f4d82}
+.efchip.res{color:#6b5b95;background:#f1eef9;border-color:#d9d2ec}
+.efchip.res b{color:#5a4a86}
+.efchip.pro{color:#2f7a4a;background:#eaf6ee;border-color:#cfe8d8}
+.efchip.pro b{color:#1f5f38}
+.efchip.stat{color:#8a5a15;background:#fdf3e4;border-color:#f0ddbd}
+.efchip.stat b{color:#754a10}
+.crewsrc .ok{color:#2f7a4a;font-weight:600}
+.crewsrc .no{color:var(--mut);font-weight:600}
 .pchip .tc{opacity:.55;font-size:11px}
 .pgrid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(430px,1fr));align-items:start}
 .pcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px 15px;
@@ -492,6 +506,10 @@ mark{background:color-mix(in srgb,var(--accent) 30%,transparent);color:inherit;b
 .acrow .k{flex:0 0 auto;font-size:11px;padding:1px 7px;border-radius:6px;font-weight:600;margin-top:1px}
 .acrow .v{flex:1;min-width:0;color:var(--txt2);line-height:1.5}
 .acrow .v b{font-weight:600;color:var(--txt)}
+.acrow .k.efk.imm{color:#2b5f9e;background:#eaf1fa}
+.acrow .k.efk.res{color:#6b5b95;background:#f1eef9}
+.acrow .k.efk.pro{color:#2f7a4a;background:#eaf6ee}
+.acrow .k.efk.stat{color:#8a5a15;background:#fdf3e4}
 .more-btn{border:0;background:transparent;color:var(--accent);font-size:12px;cursor:pointer;padding:2px 0}
 
 footer{max-width:1360px;margin:0 auto;padding:0 22px 34px;color:var(--mut);font-size:11.5px;line-height:1.8}
@@ -533,6 +551,7 @@ footer b{color:var(--txt2);font-weight:600}
       <button data-p="monsters">怪物图鉴</button>
       <button data-p="merchants">商人</button>
       <button data-p="crew">船员</button>
+      <button data-p="epp">防护背包 / 模块</button>
       <button data-p="brew">酿造学</button>
       <button data-p="anomalies">轨道目标</button>
     </div>
@@ -635,6 +654,16 @@ footer b{color:var(--txt2);font-weight:600}
   <div class="pgrid" id="cgrid"></div>
 </main>
 
+<main id="eview" hidden>
+  <div class="cnote">防护背包（EPP）装备在背部槽位，提供环境防护（供氧、耐寒、耐热、抗辐射等）；EPP 插件（模块）插入背包的插件槽，叠加各种强化。点任意卡片可查看<b>合成表</b>、<b>获取途径</b>与<b>防护效果</b>；无配方的物品在抽屉里只列获取途径。</div>
+  <div class="pfilter">
+    <input id="eq" type="search" autocomplete="off" spellcheck="false" placeholder="搜索名称 / 防护效果（如 辐射 / 供氧 / 免疫）">
+    <div class="pchips" id="etabs"></div>
+    <span class="pcount" id="ecount"></span>
+  </div>
+  <div class="pgrid" id="egrid"></div>
+</main>
+
 <main id="bview" hidden>
   <div class="pfilter">
     <input id="bq" type="search" autocomplete="off" placeholder="搜索材料 / 效果 / 药水">
@@ -692,6 +721,7 @@ let WI = D.weatherInfo || {};                           // 天气效果（同上
 let ANO = D.anomalies || [], AIC = D.aIcons || [];      // 轨道目标（同上）
 let LC = D.liqCollect || {};                            // 液体收集器（随 world 加载）
 let CREW = D.crew || {roles:[],fx:{}};                  // 船员效果（随 world 加载）
+let EPP = D.epp || {packs:[],augs:[],fx:{}};            // 防护背包 / EPP 模块（随 world 加载）
 const THR_NAME=['无害','低危','中等','高风险','危险','极端','致命','不可能','无法估量','免谈'];
 const THR_ROMAN=['I','II','III','IV','V','VI','VII','VIII','IX','X'];
 const THR_FULL=THR_NAME.map((n,i)=>`${n}（${THR_ROMAN[i]}）`);
@@ -1653,6 +1683,96 @@ function buildCrewTabs(){
   });
 }
 
+/* ================= 防护背包 / EPP 模块 ================= */
+/* d.epp = { packs:[物品索引], augs:[物品索引], fx:{索引:[[kind,标签,数值]]}, meta:{...} }
+   kind：imm 免疫 / res 抗性 / pro 防护 / stat 属性
+   合成表与获取途径直接复用物品抽屉（openDrawer），这里只补效果小节 */
+const est={q:'',t:'',shown:0};
+const PAGE_E=24;
+const egrid=$('#egrid'), ecount=$('#ecount');
+const EF_KIND={imm:'免疫',res:'抗性',pro:'防护',stat:'属性'};
+
+function eppFx(i){
+  const k=String(i);
+  return (EPP.fx&&EPP.fx[k])||[];
+}
+function efChip(f){
+  const [kind,lab,val]=f;
+  return `<span class="pst efchip ${kind}">${esc(lab)}${val?` <b>${esc(val)}</b>`:''}</span>`;
+}
+function eppAll(){
+  return (EPP.packs||[]).map(i=>({i,cat:'pack'})).concat((EPP.augs||[]).map(i=>({i,cat:'aug'})));
+}
+function eppKey(i){
+  const it=IT[i]||[];
+  const fx=eppFx(i).map(f=>f[1]+' '+(f[2]||'')).join(' ');
+  return (it[1]+' '+(it[5]||'')+' '+it[0]+' '+fx).toLowerCase();
+}
+function eppList(){
+  const q=est.q.trim().toLowerCase();
+  return eppAll().filter(o=>{
+    if(est.t && o.cat!==est.t) return false;
+    if(!q) return true;
+    return eppKey(o.i).includes(q);
+  }).sort((a,b)=>{
+    if(a.cat!==b.cat) return a.cat==='pack'?-1:1;      // 防护背包在前
+    const x=IT[a.i]||[],y=IT[b.i]||[];
+    return String(x[1]||'').localeCompare(String(y[1]||''),'zh');
+  });
+}
+function eppCard(o){
+  const i=o.i, it=IT[i]||[];
+  const fx=eppFx(i);
+  const recipes=madeBy.get(i)||[];
+  const hasAcq=!!acqOf(i);
+  const tail = recipes.length
+    ? `<span class="ok">可合成</span> · ${recipes.length} 种配方`
+    : (hasAcq ? `<span class="no">无配方</span> · 点击查看获取途径` : `<span class="no">无配方</span> · 暂无静态来源`);
+  return `<article class="pcard ecard" data-i="${i}">
+    <div class="pthumb">${iconHTML(i)}</div>
+    <div class="pwrap">
+      <div class="phd"><h3>${esc(it[1]||it[0])}</h3>
+        <span class="psrc">${o.cat==='pack'?'防护背包':'EPP 模块'}</span>
+        ${SR[it[9]]&&SR[it[9]]!=='本体'?`<span class="psrc" style="opacity:.75">${esc(SR[it[9]])}</span>`:''}</div>
+      <div class="pstats">${fx.length?fx.map(efChip).join(''):'<span class="pst mut">无防护效果（装饰 / 功能背包）</span>'}</div>
+      <div class="crewsrc mut">${tail}</div>
+    </div>
+  </article>`;
+}
+function renderEpp(reset){
+  if(reset) est.shown=0;
+  const all=eppList();
+  const batch=all.slice(est.shown, est.shown+PAGE_E);
+  est.shown+=batch.length;
+  const html=batch.map(eppCard).join('');
+  if(reset) egrid.innerHTML=html || `<div class="empty" style="grid-column:1/-1"><div class="big">🎒</div>没有匹配的背包 / 模块</div>`;
+  else egrid.insertAdjacentHTML('beforeend', html);
+  const nP=(EPP.packs||[]).length, nA=(EPP.augs||[]).length;
+  const nR=(EPP.packs||[]).concat(EPP.augs||[]).filter(i=>(madeBy.get(i)||[]).length).length;
+  ecount.innerHTML=`共 <b>${nP+nA}</b> 件（背包 ${nP} · 模块 ${nA}）· ${nR} 件可合成`;
+  let more=document.getElementById('emore');
+  if(est.shown<all.length){
+    if(!more){
+      more=document.createElement('button'); more.id='emore'; more.className='morep';
+      more.onclick=()=>renderEpp(false); egrid.after(more);
+    }
+    more.textContent=`加载更多（还有 ${all.length-est.shown} 件）`;
+  }else if(more) more.remove();
+}
+function buildEppTabs(){
+  const nP=(EPP.packs||[]).length, nA=(EPP.augs||[]).length;
+  const mk=(v,label,n)=>`<button class="pchip${est.t===v?' on':''}" data-et="${v}">${label} ${n}</button>`;
+  $('#etabs').innerHTML=mk('','全部',nP+nA)+mk('pack','防护背包',nP)+mk('aug','EPP 模块',nA);
+  $('#etabs').querySelectorAll('[data-et]').forEach(b=>b.onclick=()=>{
+    est.t=b.dataset.et; buildEppTabs(); renderEpp(true);
+  });
+}
+$('#eq').oninput=e=>{ est.q=e.target.value; renderEpp(true); };
+egrid.onclick=e=>{
+  const card=e.target.closest('[data-i]');
+  if(card) openDrawer(+card.dataset.i);
+};
+
 /* ================= 酿造学（Brewology） ================= */
 let BREW = D.brew || {};
 const ROMAN=['I','II','III','IV','V','VI','VII','VIII','IX','X'];
@@ -1873,6 +1993,7 @@ function setPage(pg){
   $('#avview').hidden = pg!=='anomalies';
   $('#bview').hidden = pg!=='brew';
   $('#cview').hidden = pg!=='crew';
+  $('#eview').hidden = pg!=='epp';
   // 物品侧的搜索框、模式切换、排序与筛选栏，在星球页一并收起
   document.querySelector('.searchrow').hidden = !isItems;
   $('#filters').hidden = !isItems;
@@ -1883,6 +2004,7 @@ function setPage(pg){
   if(pg==='anomalies'){ buildAnoTabs(); renderAnomalies(true); }
   if(pg==='brew'){ buildBrewTabs(); renderBrew(true); }
   if(pg==='crew'){ buildCrewTabs(); renderCrew(true); }
+  if(pg==='epp'){ buildEppTabs(); renderEpp(true); }
 }
 document.querySelectorAll('#pagebar button').forEach(b=>b.onclick=()=>setPage(b.dataset.p));
 pgrid.addEventListener('click',e=>{
@@ -2207,6 +2329,17 @@ function openDrawer(i){
   let h='';
   if(it[4]) h+=`<div class="dsec"><div class="desc">${esc(it[4])}</div></div>`;
 
+  /* 防护效果（防护背包 / EPP 模块） */
+  const efx=(EPP.fx&&EPP.fx[String(i)])||null;
+  if(efx&&efx.length){
+    const rows=efx.map(f=>{
+      const [kind,lab,val]=f;
+      return `<div class="acrow"><span class="k t0 efk ${kind}">${EF_KIND[kind]||'效果'}</span>
+        <span class="v">${esc(lab)}${val?` <b>${esc(val)}</b>`:''}</span></div>`;
+    }).join('');
+    h+=`<div class="dsec"><h4>防护 / 插件效果</h4><div class="acq">${rows}</div></div>`;
+  }
+
   /* 矿物产地 */
   const os_=OS[i];
   if(os_&&os_.length){
@@ -2427,12 +2560,14 @@ function applyPart(name){
   }else{
     PL=D.planets||[]; MON=D.monsters||[]; MER=D.merchants||[]; WI=D.weatherInfo||{};
     ANO=D.anomalies||[]; AIC=D.aIcons||[]; BREW=D.brew||{}; LC=D.liqCollect||{}; CREW=D.crew||{roles:[],fx:{}};
+    EPP=D.epp||{packs:[],augs:[],fx:{}};
     if(state.page==='planets'){ buildPlanetTabs(); renderPlanets(true); }
     if(state.page==='monsters'){ buildMonsterTabs(); renderMonsters(true); }
     if(state.page==='merchants'){ buildMerchantTabs(); renderMerchants(true); }
     if(state.page==='anomalies'){ buildAnoTabs(); renderAnomalies(true); }
     if(state.page==='brew'){ buildBrewTabs(); renderBrew(true); }
     if(state.page==='crew'){ buildCrewTabs(); renderCrew(true); }
+    if(state.page==='epp'){ buildEppTabs(); renderEpp(true); }
   }
 }
 if(!PART.icons) loadPart('icons','data/icons.js').then(ok=>{ if(ok) applyPart('icons'); });
