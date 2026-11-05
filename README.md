@@ -11,8 +11,8 @@ Starbound（星界边境）1.4.4 的**离线网页图鉴**，支持中文 / 拼�
 | 配方 | **17153** 条 | 星球类型 | **127** 种 |
 | 物品 | **19715** 种 | 怪物 | **1170** 种 |
 | 制作站 / 加工设备 | 190 类 | 内嵌图标 | 14522 件 |
-| 中文名 / 描述覆盖 | **99.2% / 98.9%** | 无静态来源物品 | 7947 件 |
-| 商人 / 商品池 | **57** 个 / 2235 条 | 矿物种类 | **75** 种 |
+| 中文名 / 描述覆盖 | **99.2% / 98.9%** | 无静态来源物品 | 7924 件 |
+| 商人 / 商品池 | **57** 个 / 2235 条 | 矿物种类 | **79** 种 |
 | 轨道目标 | **27** 类 / 36 个变体 | 天气种类 | **123** 种 |
 | 酿造材料 | **71** 种 | 特有药水 | **12** 种 |
 | 船员角色 | **98** 组 | 状态效果 | **78** 种 |
@@ -34,9 +34,9 @@ Starbound（星界边境）1.4.4 的**离线网页图鉴**，支持中文 / 拼�
 
 ## 数据来源
 
-全部由游戏资源解析，非手工整理：合成 `recipes/*.recipe`；采集 `harvestPool` → `treasurepools`；掉落 `dropPools`；宝箱 `treasurepools`；挖矿 `oredistributions.configfunctions`；矿物产地 `.biome` 的 `ores` 键 + FU 矿脉补丁；商人商品 `/npcs/merchantpools.config` + `.npctype` 的 `scriptConfig.merchant`；轨道目标 `/system_objects.config`；机器加工 FU 的 7 份产出表；液体收集 `fu_liquidcondenser` / 泰坦 MK2 / `isn_atmoscondenser` 的星球类型产出表；船员取自 `/npcs/crew/*.npctype` 的角色加成与 `/stats/effects/**` 的状态效果文案、图标（飞船属性基数见 `ships/shipupgrades.config`）；酿造学取自 uniquePotion 配置键名与手稿文本；研究点数 `extractor_research.lua`（价格 × 稀有度 × 5%）。
+全部由游戏资源解析，非手工整理：合成 `recipes/*.recipe`；采集 `harvestPool` → `treasurepools`；掉落 `dropPools`；宝箱 `treasurepools`；挖矿 `oredistributions.configfunctions`；矿物产地 `.biome` 的 `ores` 键 + FU 矿脉补丁，方块名与物品 id 不一致时按 `.matmod` 的 `itemDrop` 对应（如 `fublooddiamond` → 血晶）；商人商品 `/npcs/merchantpools.config` + `.npctype` 的 `scriptConfig.merchant`；轨道目标 `/system_objects.config`；机器加工 FU 的 7 份产出表；液体收集 `fu_liquidcondenser` / 泰坦 MK2 / `isn_atmoscondenser` 的星球类型产出表；船员取自 `/npcs/crew/*.npctype` 的角色加成与 `/stats/effects/**` 的状态效果文案、图标（飞船属性基数见 `ships/shipupgrades.config`）；酿造学取自 uniquePotion 配置键名与手稿文本；研究点数 `extractor_research.lua`（价格 × 稀有度 × 5%）。
 
-19715 件物品中 7947 件没有任何静态来源（模组装饰物、方块变体，或依赖养殖 / 任务 / 交易等动态机制），其余至少标注一种。
+19715 件物品中 7924 件没有任何静态来源（模组装饰物、方块变体，或依赖养殖 / 任务 / 交易等动态机制），其余至少标注一种（合成 / 采集 / 掉落 / 宝箱 / 商人 / 挖矿）。
 
 ## 说明
 
