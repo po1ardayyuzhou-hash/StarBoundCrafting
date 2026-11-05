@@ -201,6 +201,29 @@ select{
 .efchip.stat b{color:#754a10}
 .crewsrc .ok{color:#2f7a4a;font-weight:600}
 .crewsrc .no{color:var(--mut);font-weight:600}
+/* 效果说明浮层 */
+.efchip{cursor:pointer;transition:border-color .12s,box-shadow .12s}
+.efchip:hover{border-color:currentColor;box-shadow:0 0 0 2px rgba(0,0,0,.04)}
+.efpop{position:fixed;z-index:120;width:330px;max-width:calc(100vw - 24px);
+  background:var(--bg);border:1px solid var(--line2);border-radius:12px;
+  box-shadow:0 10px 30px rgba(20,30,50,.16),0 2px 8px rgba(20,30,50,.08);
+  padding:12px 14px 11px;animation:efin .13s ease-out}
+@keyframes efin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.efph{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.efph .efk{font-size:11px;padding:1px 7px;border-radius:6px;font-weight:600;
+  color:#2b5f9e;background:#eaf1fa}
+.efph .efk.res{color:#6b5b95;background:#f1eef9}
+.efph .efk.pro{color:#2f7a4a;background:#eaf6ee}
+.efph .efk.stat{color:#8a5a15;background:#fdf3e4}
+.efph b{font-size:13.5px;color:var(--txt);flex:1;min-width:0}
+.efph .efv{font-size:12px;font-weight:700;color:#a13a2e;font-style:normal}
+.efph .efx{border:0;background:transparent;color:var(--mut);font-size:17px;line-height:1;
+  cursor:pointer;padding:0 2px;border-radius:4px}
+.efph .efx:hover{color:var(--txt);background:var(--bg2)}
+.efpd{margin:9px 0 0;font-size:12.8px;line-height:1.75;color:var(--txt2)}
+.efpm{margin-top:9px;padding-top:8px;border-top:1px solid var(--line2);
+  font-size:11.8px;line-height:1.6;color:var(--mut)}
+.efpm b{color:var(--accent)}
 .pchip .tc{opacity:.55;font-size:11px}
 .pgrid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(430px,1fr));align-items:start}
 .pcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px 15px;
@@ -510,6 +533,8 @@ mark{background:color-mix(in srgb,var(--accent) 30%,transparent);color:inherit;b
 .acrow .k.efk.res{color:#6b5b95;background:#f1eef9}
 .acrow .k.efk.pro{color:#2f7a4a;background:#eaf6ee}
 .acrow .k.efk.stat{color:#8a5a15;background:#fdf3e4}
+.efrow{cursor:pointer;border-radius:6px;padding:2px 4px;margin:-2px -4px;transition:background .12s}
+.efrow:hover{background:var(--bg2)}
 .more-btn{border:0;background:transparent;color:var(--accent);font-size:12px;cursor:pointer;padding:2px 0}
 
 footer{max-width:1360px;margin:0 auto;padding:0 22px 34px;color:var(--mut);font-size:11.5px;line-height:1.8}
@@ -655,7 +680,7 @@ footer b{color:var(--txt2);font-weight:600}
 </main>
 
 <main id="eview" hidden>
-  <div class="cnote">防护背包（EPP）装备在背部槽位，提供环境防护（供氧、耐寒、耐热、抗辐射等）；EPP 插件（模块）插入背包的插件槽，叠加各种强化。点任意卡片可查看<b>合成表</b>、<b>获取途径</b>与<b>防护效果</b>；无配方的物品在抽屉里只列获取途径。</div>
+  <div class="cnote">防护背包（EPP）装备在背部槽位，提供环境防护（供氧、耐寒、耐热、抗辐射等）；EPP 插件（模块）插入背包的插件槽，叠加各种强化。<b>点效果标签</b>可查看具体作用与拥有同效果的物品；点卡片其他位置打开抽屉，查看<b>合成表</b>、<b>获取途径</b>与全部效果；无配方的物品在抽屉里只列获取途径。</div>
   <div class="pfilter">
     <input id="eq" type="search" autocomplete="off" spellcheck="false" placeholder="搜索名称 / 防护效果（如 辐射 / 供氧 / 免疫）">
     <div class="pchips" id="etabs"></div>
@@ -690,6 +715,7 @@ footer b{color:var(--txt2);font-weight:600}
 <footer id="foot"></footer>
 
 <div id="backdrop"></div>
+<div id="efpop" class="efpop" hidden></div>
 <aside id="drawer" aria-hidden="true">
   <div class="dhead">
     <div class="ico" id="di"></div>
@@ -1698,7 +1724,7 @@ function eppFx(i){
 }
 function efChip(f){
   const [kind,lab,val]=f;
-  return `<span class="pst efchip ${kind}">${esc(lab)}${val?` <b>${esc(val)}</b>`:''}</span>`;
+  return `<span class="pst efchip ${kind}" data-ef="${esc(lab)}" data-ek="${kind}"${val?` data-ev="${esc(val)}"`:''} title="点击查看效果说明">${esc(lab)}${val?` <b>${esc(val)}</b>`:''}</span>`;
 }
 function eppAll(){
   return (EPP.packs||[]).map(i=>({i,cat:'pack'})).concat((EPP.augs||[]).map(i=>({i,cat:'aug'})));
@@ -1768,10 +1794,60 @@ function buildEppTabs(){
   });
 }
 $('#eq').oninput=e=>{ est.q=e.target.value; renderEpp(true); };
+
+/* ---- 效果说明浮层 ---- */
+const efpop=$('#efpop');
+function efOwners(lab){
+  const all=(EPP.packs||[]).concat(EPP.augs||[]);
+  const hit=[];
+  for(const i of all){
+    if(eppFx(i).some(f=>f[1]===lab)) hit.push(i);
+  }
+  return hit;
+}
+function closeEfPop(){ if(efpop) efpop.hidden=true; }
+function showEfPop(chip){
+  if(!efpop) return;
+  const lab=chip.dataset.ef, kind=chip.dataset.ek||'stat', val=chip.dataset.ev||'';
+  const d=(EPP.doc&&EPP.doc[lab])||[kind, docFallback(kind,lab)];
+  const owners=efOwners(lab);
+  const names=owners.slice(0,3).map(i=>esc((IT[i]||[])[1]||'')).filter(Boolean);
+  efpop.innerHTML=
+    `<div class="efph"><span class="efk ${kind}">${EF_KIND[kind]||'效果'}</span>
+       <b>${esc(lab)}</b>${val?`<em class="efv">${esc(val)}</em>`:''}
+       <button class="efx" type="button" aria-label="关闭">×</button></div>
+     <p class="efpd">${esc(d[1])}</p>
+     <div class="efpm">共 <b>${owners.length}</b> 件防护背囊 / 模块带有此效果${names.length?`：${names.join('、')}${owners.length>3?' 等':''}`:''}</div>`;
+  efpop.hidden=false;
+  // 定位到标签下方，越界时回弹
+  const r=chip.getBoundingClientRect();
+  const w=efpop.offsetWidth, h=efpop.offsetHeight;
+  let left=Math.min(r.left, window.innerWidth-w-12);
+  left=Math.max(12, left);
+  let top=r.bottom+8;
+  if(top+h>window.innerHeight-12) top=Math.max(12, r.top-h-8);
+  efpop.style.left=left+'px';
+  efpop.style.top=top+'px';
+  efpop.querySelector('.efx').onclick=e=>{ e.stopPropagation(); closeEfPop(); };
+}
+function docFallback(kind,lab){
+  if(kind==='imm') return '不受到对应的环境伤害或负面状态影响。';
+  if(kind==='res') return '受到该类型伤害时按百分比减免。';
+  if(kind==='pro') return '提供该环境的防护，可在对应生物群系正常活动。';
+  return '提供该属性的增益。';
+}
 egrid.onclick=e=>{
+  if(e.target.closest('.efchip')) return;          // 效果标签交给全局处理
   const card=e.target.closest('[data-i]');
   if(card) openDrawer(+card.dataset.i);
 };
+/* 卡片标签与抽屉效果行都走同一套浮层 */
+document.addEventListener('click',e=>{
+  const hit=e.target.closest('.efchip, .efrow');
+  if(hit && hit.dataset && hit.dataset.ef){ e.stopPropagation(); showEfPop(hit); return; }
+  if(efpop && !efpop.hidden && !e.target.closest('#efpop')) closeEfPop();
+});
+window.addEventListener('resize',closeEfPop);
 
 /* ================= 酿造学（Brewology） ================= */
 let BREW = D.brew || {};
@@ -2334,7 +2410,7 @@ function openDrawer(i){
   if(efx&&efx.length){
     const rows=efx.map(f=>{
       const [kind,lab,val]=f;
-      return `<div class="acrow"><span class="k t0 efk ${kind}">${EF_KIND[kind]||'效果'}</span>
+      return `<div class="acrow efrow" data-ef="${esc(lab)}" data-ek="${kind}"${val?` data-ev="${esc(val)}"`:''} title="点击查看效果说明"><span class="k t0 efk ${kind}">${EF_KIND[kind]||'效果'}</span>
         <span class="v">${esc(lab)}${val?` <b>${esc(val)}</b>`:''}</span></div>`;
     }).join('');
     h+=`<div class="dsec"><h4>防护 / 插件效果</h4><div class="acq">${rows}</div></div>`;
