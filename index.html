@@ -387,6 +387,9 @@ html[data-theme="dark"] .pst.env{color:#ed9a52;background:#2a1d10;border-color:#
 .mghead:before{content:'';width:2px;height:11px;border-radius:1px;background:var(--line)}
 .mgroup:first-child .mghead:before{background:var(--accent)}
 .mghead em{font-style:normal;opacity:.7}
+.mgsub{font-size:11px;color:var(--mut);opacity:.8;margin:7px 0 5px;padding-left:8px;border-left:2px solid var(--line2)}
+/* 只存在于太空小行星带的矿，名字后加个「轨」小标 */
+.ing .oit{font-style:normal;font-size:9.5px;line-height:1;opacity:.5;margin-left:4px;border:1px solid currentColor;border-radius:3px;padding:1px 2px;vertical-align:1px}
 .och[data-oi]{cursor:pointer;transition:.12s}
 .och[data-oi]:hover{border-color:color-mix(in srgb,var(--accent) 55%,var(--line2));color:var(--txt);background:var(--card)}
 .och[data-r]{border-color:color-mix(in srgb,var(--rc) 45%,var(--line2));
@@ -466,6 +469,8 @@ html[data-theme="dark"] .ico[data-r="legendary"],html[data-theme="dark"] .ico[da
 .ing .ph{width:17px;height:17px;border-radius:4px;display:grid;place-items:center;font-size:9px;font-weight:700}
 .ing em{font-style:normal;color:var(--mut);font-size:11px;font-weight:600}
 .ing .nm{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 矿产区标签：矿名最长 8 字（纯净厄尔吉斯晶体），放宽避免被「轨」标挤成省略号 */
+.psec .pbl .ing .nm{max-width:180px}
 .ing[data-r]{border-color:color-mix(in srgb,var(--rc) 38%,var(--line2));
   background:color-mix(in srgb,var(--rc) 8%,var(--bg2))}
 .ing[data-oi]{cursor:pointer}
@@ -1317,7 +1322,23 @@ function buildPlanetTabs(){
     pstate.t=+b.dataset.t; buildPlanetTabs(); renderPlanets(true);
   });
 }
-let curP=null, pExpand={mob:false,biome:false}, curLv=0;
+let curP=null, pExpand={mob:false,biome:false,ore:false}, curLv=0;
+/* 矿物 → 出现过的星球类型集合；用来判断“独有 / 稀有 / 通用” */
+let ORE_SPAN=null;
+function oreSpan(){
+  if(ORE_SPAN) return ORE_SPAN;
+  ORE_SPAN=new Map();
+  PL.forEach(p=>{
+    const seen=new Set();
+    (p.layers||[]).forEach(([g,ores])=>ores.forEach(([id])=>seen.add(id)));
+    seen.forEach(id=>{
+      let s=ORE_SPAN.get(id);
+      if(!s){ s=new Set(); ORE_SPAN.set(id,s); }
+      s.add(p.id);
+    });
+  });
+  return ORE_SPAN;
+}
 function chipList(items, limit, key){
   const shown=pExpand[key]?items:items.slice(0,limit);
   let html=shown.map(x=>Array.isArray(x)
@@ -1347,7 +1368,7 @@ function wDesc(w){
 
 function openPlanet(p, keep){
   curP=p;
-  if(!keep) pExpand={mob:false,biome:false};
+  if(!keep) pExpand={mob:false,biome:false,ore:false};
   const [t0,t1]=p.threat||[0,0];
   di.innerHTML = (p.icon>=0 && PIC[p.icon])
     ? `<img src="data:image/png;base64,${PIC[p.icon]}" alt="">`
@@ -1391,7 +1412,7 @@ function openPlanet(p, keep){
   /* 等级切换：矿产只在有解锁变化的区间内才值得切换 */
   const maxU=Math.max(t0, ...[...oMap.values()].map(o=>o.u));   // 矿脉配置最高档位
   const hi=Math.min(t1, maxU);
-  if(!keep){ pExpand={mob:false,biome:false}; curLv=hi; }
+  if(!keep){ pExpand={mob:false,biome:false,ore:false}; curLv=hi; }
   curLv=Math.max(t0, Math.min(curLv, hi));
   if(hi>t0){
     const cntAt=L=>{ let n=0; oMap.forEach(o=>{ if(o.u<=L) n++; }); return n; };
@@ -1404,25 +1425,41 @@ function openPlanet(p, keep){
   }
 
   const shown=[...oMap.entries()].filter(([,o])=>o.u<=curLv);
-  const onPlanet=shown.filter(([,o])=>o.planet);        // 地表 / 浅层 / 地下 / 核心
-  const inOrbit=shown.filter(([,o])=>!o.planet);        // 仅存在于太空小行星
+  /* 独有度：这种矿在多少种星球类型的矿脉表里出现（含轨道小行星层） */
+  const span=oreSpan();
+  const nSpan=id=>{ const s=span.get(id); return s?s.size:1; };
   const chip=([id,o])=>{
-    const r=rarOf(id);
-    return `<span class="ing" data-oi="${id}" title="查看配方与获取途径"${r?` data-r="${r}"`:''}>${iconHTML(id)}<span class="nm">${esc(o.name)}</span></span>`;
+    const r=rarOf(id), c=nSpan(id);
+    const hint=`${esc(o.name)} · ${c===1?'仅此一处，其它星球挖不到':`${c} 种星球可获得`}${o.planet?'':' · 只在太空小行星带'} · 点击查看配方`;
+    const tag=o.planet?'':'<i class="oit">轨</i>';
+    return `<span class="ing" data-oi="${id}" title="${hint}"${r?` data-r="${r}"`:''}>${iconHTML(id)}<span class="nm">${esc(o.name)}${tag}</span></span>`;
   };
+  /* 按物品稀有度分五档，从传说排到普通，全部展开；同档内按跨星球稀缺度排序 */
+  const TIERS=RAR_ORDER.filter(k=>k!=='none');
+  const tierOf=id=>{ const r=rarOf(id); return (r&&r!=='none')?r:''; };
+  const byRare=(A,B)=>{
+    const d=nSpan(A[0])-nSpan(B[0]); if(d) return d;
+    return A[1].name.localeCompare(B[1].name,'zh');
+  };
+  const buckets=TIERS.slice().reverse().map(k=>[k, shown.filter(([id])=>tierOf(id)===k).sort(byRare)])
+    .filter(([,arr])=>arr.length);
+  const unknown=shown.filter(([id])=>!tierOf(id)).sort(byRare);
   const rset=new Set(shown.map(([id])=>rarOf(id)||'none'));
-  h+=`<div class="dsec psec"><h4>矿产 · ${shown.length}</h4>`;
+  /* 每个稀有度的「大概能挖到的星球数」——按这一档所有矿的跨星球数中位数给个区间感 */
+  const SPAN_NOTE={ essential:'星系里只有极少数星球出产', legendary:'大多只在屈指可数的星球出产',
+                    rare:'半数以上星球都有', uncommon:'多数星球都有', common:'几乎每种星球都能挖到' };
+  h+=`<div class="dsec psec"><h4>矿产 · 共 ${shown.length} 种</h4>`;
   if(!shown.length){
     h+=`<div class="none">该等级下不生成矿脉。</div>`;
   }else{
-    h+=`<div class="mgroup"><div class="mghead">星球 · 地表 / 地下 / 核心<em>${onPlanet.length}</em></div>`;
-    h+= onPlanet.length
-      ? `<div class="pbl">${onPlanet.map(chip).join('')}</div>`
-      : `<div class="none">该类型在地表、地下与核心层都不生成矿脉，矿物只能从轨道小行星获取。</div>`;
-    h+=`</div>`;
-    if(inOrbit.length){
-      h+=`<div class="mgroup"><div class="mghead">轨道 · 太空小行星带<em>${inOrbit.length}</em></div>`;
-      h+=`<div class="pbl">${inOrbit.map(chip).join('')}</div></div>`;
+    h+=`<div class="lvn" style="margin:0 0 10px">按<b>物品稀有度</b>分档：传说 → 史诗 → 稀有 → 罕见 → 普通，全部展开；同一档内按跨星球稀缺度排序。矿名后带 <b>「轨」</b> 的只存在于太空小行星带，要飞到轨道上敲，地表挖不到。</div>`;
+    buckets.forEach(([k,arr])=>{
+      h+=`<div class="mgroup"><div class="mghead">${esc(RAR[k])}<em>${arr.length} 种 · ${esc(SPAN_NOTE[k]||'')}</em></div>
+        <div class="pbl">${arr.map(chip).join('')}</div></div>`;
+    });
+    if(unknown.length){
+      h+=`<div class="mgroup"><div class="mghead">未标稀有度<em>${unknown.length}</em></div>
+        <div class="pbl">${unknown.map(chip).join('')}</div></div>`;
     }
     const order=RAR_ORDER.filter(k=>k!=='none'&&rset.has(k));
     if(order.length) h+=`<div class="rarleg">${order.map(k=>
@@ -1494,7 +1531,7 @@ function openPlanet(p, keep){
   h+=`<div class="dsec psec"><h4>群系 · ${(p.biomes||[]).length}</h4><div class="pbl">${
     chipList(p.biomes||[], 14, 'biome') || '<span class="none">无</span>'}</div></div>`;
 
-  h+=`<div class="pfoot">「星球」组来自地表、浅层、地下与核心层，落地即可开采；「轨道」组只存在于太空的小行星带，需要飞到轨道上敲。颜色代表矿物稀有度，等级依据矿脉配置的档位换算。</div>`;
+  h+=`<div class="pfoot">稀有度分组里「N 种 · 描述」中的人数说明是该档矿物在星系里的常见程度；同档内按跨星球稀缺度排序（能在越少星球挖到越靠前）。</div>`;
 
   dbody.innerHTML=h;
   dbody.querySelectorAll('[data-exp]').forEach(b=>b.onclick=()=>{
