@@ -307,6 +307,10 @@ html[data-theme="dark"] .pst.liq b{color:#74c6ef}
 .btag{font-size:11px;padding:1px 7px;border-radius:999px;background:var(--bg2);border:1px solid var(--line2);color:var(--txt2);white-space:nowrap}
 .btag i{font-style:normal;opacity:.6;margin-left:3px;font-size:10px}
 .btag.num{font-family:ui-monospace,monospace}
+/* 效果/修饰材料的搅拌槽位：前面是第几次搅拌，空槽用虚线表示「无效果」 */
+.btag.bslot b{font-weight:700;opacity:.55;margin-right:4px;font-size:10px;font-family:ui-monospace,monospace}
+.btag.bslot.none{color:var(--txt2);border-style:dashed;background:transparent}
+.btag.bslot.none b{opacity:.6}
 .bd{font-size:12px;line-height:1.68;color:var(--txt2);margin:0}
 .bd b{color:var(--txt)}
 .bflow{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:16px 0 4px}
@@ -2156,15 +2160,29 @@ function bFilterNote(n,total){
   return bstate.q ? `筛出 <b>${n}</b> / ${total} 项` : `共 ${total} 项`;
 }
 
+/* 效果 / 修饰材料固定 5 个槽位，对应第 1~5 次搅拌；
+   空槽是有意义的（这一次搅拌不产出任何东西），必须显式写出「无效果」 */
+function slotTags(arr){
+  const a=arr||[];
+  let out='';
+  for(let i=0;i<5;i++){
+    const e=a[i];
+    if(e && e[0]){
+      const lv=e[1]?`<i>${ROMAN[e[1]-1]||e[1]}</i>`:'';
+      out+=`<span class="btag bslot" title="第 ${i+1} 次搅拌：${esc(e[0])}${e[1]?` ${ROMAN[e[1]-1]||e[1]} 级`:''}"><b>${i+1}</b>${esc(e[0])}${lv}</span>`;
+    }else{
+      out+=`<span class="btag bslot none" title="第 ${i+1} 次搅拌：不提供任何效果"><b>${i+1}</b>无效果</span>`;
+    }
+  }
+  return out;
+}
 function matCard(kind,m){
   const nm=bItemName(m.id);
   let tags='';
   if(kind==='E'){
-    tags=(m.fx||[]).map(([n,l])=> n
-      ? `<span class="btag">${esc(n)}${l?`<i>${ROMAN[l-1]||l}</i>`:''}</span>`
-      : `<span class="btag" style="opacity:.45">空槽</span>`).join('');
+    tags=slotTags(m.fx);
   }else if(kind==='M'){
-    tags=(m.md||[]).map(([n,l])=>`<span class="btag">${esc(n)}${l?`<i>${ROMAN[l-1]||l}</i>`:''}</span>`).join('');
+    tags=slotTags(m.md);
   }else if(kind==='P'){
     const b=m.b||{};
     tags=[['drink',b.drink],['splash',b.splash],['spread',b.spread],['spray',b.spray]]
@@ -2265,8 +2283,8 @@ function renderBrew(reset){
   const total=sec==='fx'?(BREW.fx||[]).length:sec==='mods'?(BREW.mods||[]).length:
               sec==='uniq'?(BREW.uniq||[]).length:(BREW[kind]||[]).length;
   const intro={
-    E:'效果材料决定药水的状态。同一份材料在搅拌到不同深度时会给出不同的效果与等级，所以下表按“第 1 次到第 5 次”排列。',
-    M:'修饰材料只改变药水的行为方式（速度、范围、选择性），不影响效果池。',
+    E:'效果材料决定药水的状态。同一份材料搅拌到不同深度给的效果和等级都不一样：标签前的数字是<b>第几次搅拌</b>，标签后的罗马数字是效果等级（I 最弱）。标成<b>「无效果」</b>的槽位表示这一次搅拌后这份材料什么都不给——不是资料缺失。',
+    M:'修饰材料只改变药水的行为方式（速度、范围、选择性），不影响效果池。同样按第 1~5 次搅拌列出，标<b>「无效果」</b>的那一次不产出修饰。',
     P:'投放聚合剂决定一锅药水能灌出几瓶，不同形态的产量并不相同。',
     S:'溶剂是所有药水的基底，决定成品形态与容量上限。',
     fx:'这些是酿造能给出的状态，等级越高效果越强、持续时间越长。表格为各形态下的持续时间。',
