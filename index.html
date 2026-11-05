@@ -871,12 +871,18 @@ const FILTERS={
         .filter(x=>x[2]>0).sort((a,b)=>b[2]-a[2]),
       has:(r,v)=>r.src===+v},
   acq:{label:'获取方式', getOptions:()=>[['1','采集',acqCountI[1]||0],['2','怪物掉落',acqCountI[2]||0],
-        ['3','战利品/宝箱',acqCountI[3]||0],['4','挖矿',acqCountI[4]||0],['0','仅可合成',onlyCraft]],
+        ['3','战利品/宝箱',acqCountI[3]||0],['4','挖矿',acqCountI[4]||0],
+        ['5','像素兑换',SOLD.size],['6','仅像素兑换',ONLY_SOLD.size],['0','仅可合成',onlyCraft]],
       show:()=>state.mode==='item', hasAny:(it,v)=>hasAcq(it,+v)}
 };
+const SOLD=new Set(D.sold||[]);   // 商人出售的物品索引（用像素购买）
+/* 仅像素兑换：能买到，但没有配方、也没有采集/掉落/宝箱/挖矿等静态来源 */
+const ONLY_SOLD=new Set([...SOLD].filter(i=>!madeBy.has(i) && !acqOf(i)));
 function hasAcq(it,v){
   const a=acqOf(it); 
   if(v===0) return !a && madeBy.has(it);
+  if(v===5) return SOLD.has(it);
+  if(v===6) return ONLY_SOLD.has(it);
   if(!a) return false;
   return a.some(([t])=>t===v);
 }
@@ -930,7 +936,7 @@ function fillPop(k,q){
     cb.onchange=()=>{
       const v=cb.dataset.v;
       if(cb.checked) state[k].add(v); else state[k].delete(v);
-      if(k==='acq'&&v==='0'&&cb.checked){ state.acq.delete('1');state.acq.delete('2');state.acq.delete('3');state.acq.delete('4');
+      if(k==='acq'&&v==='0'&&cb.checked){ ['1','2','3','4','5','6'].forEach(x=>state.acq.delete(x));
         listEl.querySelectorAll('input').forEach(x=>{ if(x.dataset.v!=='0') x.checked=false; }); }
       updateFilterBtns(); render(true);
     };
@@ -989,7 +995,7 @@ function curList(){
     if(state.cat.size){
       const cv=NO_DATA.has(i)?'none':String(CA.indexOf(it[5]));
       if(!state.cat.has(cv)) return false;
-    }else if(NO_DATA.has(i) && !toks) return false;   // 默认隐藏无配方数据的物品，搜索时例外
+    }else if(NO_DATA.has(i) && !toks && !state.acq.has('5') && !state.acq.has('6')) return false;   // 默认隐藏无配方数据的物品；勾选像素兑换时放行（它们其实能在商人处买到）
     if(state.rar.size && !state.rar.has(rarOf(i)||'none')) return false;
     if(state.src.size && !state.src.has(String(it[9]))) return false;
     if(state.acq.size){
@@ -1071,6 +1077,7 @@ function cardItem(i,re){
   if(a){
     [1,2,3,4].forEach(t=>{ if(a[t]) badges+=`<span class="ab ${ACQ_META[t].cls}">${ACQ_META[t].k} ${a[t]}</span>`; });
   }
+  if(SOLD.has(i)) badges+=`<span class="ab t1" style="color:#8a7a2f;background:#f7f3df">像素兑换</span>`;
   if(!badges) badges='<span class="ab" style="color:var(--mut)">无配方数据</span>';
   const ri=rarOf(i);
   return `<article class="card" data-i="${i}"${ri?` data-r="${ri}"`:''}>
@@ -1103,6 +1110,7 @@ function renderList(){
       }
       const it=IT[i], a=acqSummary(i);
       const b=[]; if(madeBy.has(i)) b.push('合成'); if(a){[1,2,3,4].forEach(t=>{if(a[t])b.push(ACQ_META[t].k)});}
+      if(SOLD.has(i)) b.push('像素兑换');
       return `<tr data-i="${i}"><td><div class="pname">${iconHTML(i)}<span>${hl(it[1],RE)}</span></div></td>
         <td>${esc(it[5])}</td><td class="pstation" style="max-width:none">${esc(b.join(' / ')||'—')}</td></tr>`;
     }).join('');
@@ -1123,8 +1131,12 @@ function render(reset){
     RE=curRegex(state.q.trim());
     countEl.innerHTML=`共 <b>${CURRENT.length}</b> ${state.mode==='recipe'?'条配方':'件物品'}` +
       (CURRENT.length!==(state.mode==='recipe'?R.length:IT.length)?` / 全部 ${state.mode==='recipe'?R.length:IT.length}`:'');
-    if(state.mode==='item' && !state.cat.has('none') && !state.q.trim() && NO_DATA.size)
-      countEl.innerHTML+=`<span class="hidtip">已隐藏 ${NO_DATA.size} 件无配方数据 · 可在「分类」中查看</span>`;
+    if(state.mode==='item' && !state.cat.has('none') && !state.q.trim() && NO_DATA.size){
+      // 勾选像素兑换时，可购买的「无配方」物品已经放行，隐藏数要相应扣掉
+      let hid=NO_DATA.size;
+      if(state.acq.has('5')||state.acq.has('6')) hid=[...NO_DATA].filter(i=>!SOLD.has(i)).length;
+      if(hid>0) countEl.innerHTML+=`<span class="hidtip">已隐藏 ${hid} 件无配方数据 · 可在「分类」中查看</span>`;
+    }
     if(!CURRENT.length){
       list.className='';
       list.innerHTML=`<div class="empty"><div class="big">🔍</div>没有匹配结果${state.q?`：<b>${esc(state.q)}</b>`:''}<br>
@@ -2465,7 +2477,15 @@ function openDrawer(i){
         <span class="v">${show.map(x=>esc(x)).join(t===2?'、':'；')}${rest>0?` <button class="more-btn" data-more="1">+${rest}</button>`:''}</span></div>`;
     });
   }
-  if(!made.length && !a){
+  /* 像素兑换（商人出售） */
+  if(SOLD.has(i)){
+    const sellers=(typeof MER!=='undefined'&&MER?MER:[]).filter(m=>Array.isArray(m[6])&&m[6].some(g=>Array.isArray(g)&&g[0]===i));
+    const price=IT[i][7];
+    const names=sellers.slice(0,4).map(m=>esc(m[1]));
+    h+=`<div class="acrow"><span class="k" style="color:#8a7a2f;background:#f7f3df">像素兑换</span>
+      <span class="v">${sellers.length?`<b>${sellers.length}</b> 个商人出售${names.length?`：${names.join('、')}${sellers.length>4?' 等':''}`:''}`:'商人处出售'}${price?`　·　单价 <b>${price}</b> 像素`:''}</span></div>`;
+  }
+  if(!made.length && !a && !SOLD.has(i)){
     h+=`<div class="none">没有静态配方，也不是常规采集/掉落物（可能来自任务、交易或代码生成）。</div>`;
   }
   h+=`</div></div>`;
