@@ -702,7 +702,7 @@ footer b{color:var(--txt2);font-weight:600}
 </main>
 
 <main id="osview" hidden>
-  <div class="cnote">收录<b>交战时会占据屏幕底部血条的 Boss</b>：本体剧情 Boss、远古守护者，以及 FU / Arcana 等模组中带专属血条的强敌（共 58 个）。数据取自怪物配置（血量 / 防御 / 接触伤害 / 伤害倍率 / 击退抗性）、动画状态（攻击动作）与游戏内典籍（背景故事）。<b>没写过典籍的 Boss 会标注「暂无记载」</b>，只列战斗档案。</div>
+  <div class="cnote">收录<b>交战时会占据屏幕底部血条的 Boss</b>：本体剧情 Boss、远古守护者，以及 FU / Arcana 等模组中带专属血条的强敌（共 <b id="osn">31</b> 个）。<b>只收真正的 Boss</b>——带血条的普通小怪、无人机与 Boss 召唤出的仆从归在「怪物图鉴」，不在这里重复。数据取自怪物配置（血量 / 防御 / 接触伤害 / 伤害倍率 / 击退抗性）、动画状态（攻击动作）与游戏内典籍（背景故事）。<b>没写过典籍的 Boss 会标注「暂无记载」</b>，只列战斗档案。</div>
   <div class="pfilter">
     <input id="osq" type="search" autocomplete="off" spellcheck="false" placeholder="搜索 Boss 名 / 攻击方式（如 光束 / 召唤）">
     <div class="pchips" id="ostabs"></div>
@@ -1975,6 +1975,7 @@ function renderBoss(reset){
   const n=BOSS.list.length;
   const nStory=BOSS.list.filter(b=>b[9]).length;
   oscount.innerHTML=`共 <b>${n}</b> 个 Boss · ${nStory} 个有典籍记载`;
+  const osn=$('#osn'); if(osn) osn.textContent=(BOSS.list||[]).length;
   let more=document.getElementById('osmore');
   if(osst.shown<all.length){
     if(!more){
