@@ -1225,7 +1225,7 @@ function planetCard(p){
     <div class="pwrap">
       <div class="phd"><h3>${esc(p.name)}</h3>
         <span class="thr" data-t="${p.threat[0]}" title="${esc(THR_DESC[p.threat[0]-1]||'')}">${esc(thrLabel(p))}</span>
-        ${p.src?'<span class="psrc">模组</span>':''}
+        ${p.src?`<span class="psrc">${esc(SR[p.src]||'模组')}</span>`:''}
       </div>
       <div class="pbi">群系：${biomes}</div>
       <div class="pstats">
@@ -1242,7 +1242,8 @@ function planetCard(p){
 function planetList(){
   const q=pstate.q.trim().toLowerCase();
   return PL.filter(p=>{
-    if(pstate.src>=0 && p.src!==pstate.src) return false;
+    if(pstate.src===-2){ if(!p.src) return false; }            // -2 = 全部模组（合计）
+    else if(pstate.src>=0 && p.src!==pstate.src) return false;
     if(pstate.t && !(pstate.t>=p.threat[0] && pstate.t<=p.threat[1])) return false;
     if(!q) return true;
     if(p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)) return true;
@@ -1259,8 +1260,14 @@ function renderPlanets(reset){
   const all=planetList();
   const batch=all.slice(pstate.shown, pstate.shown+PAGE_P);
   pstate.shown+=batch.length;
-  if(reset) pgrid.innerHTML=batch.map(planetCard).join('') ||
-    `<div class="empty" style="grid-column:1/-1"><div class="big">🪐</div>没有匹配的星球类型</div>`;
+  if(reset){
+    let tip='没有匹配的星球类型';
+    const maxBaseT=Math.max(0,...PL.filter(p=>!p.src).map(p=>p.threat[1]));
+    if(!batch.length && pstate.t>maxBaseT && pstate.src===0)
+      tip=`本体星球最高只到 ${maxBaseT} 级，${pstate.t} 级全部由模组提供，请选「模组（合计）」或具体模组`;
+    pgrid.innerHTML=batch.map(planetCard).join('') ||
+      `<div class="empty" style="grid-column:1/-1"><div class="big">🪐</div>${esc(tip)}</div>`;
+  }
   else pgrid.insertAdjacentHTML('beforeend', batch.map(planetCard).join(''));
   pcount.innerHTML=`共 <b>${all.length}</b> 种星球类型 · 矿产取该等级可出现的上限`;
   let more=document.getElementById('pmore');
@@ -1274,7 +1281,18 @@ function renderPlanets(reset){
 }
 function buildPlanetTabs(){
   const box=$('#ptabs');
-  const srcs=[['-1','全部来源'],['0','本体'],['1','模组']];
+  /* 来源档位按数据实际取值生成：src 是模组注册序号（0 本体，1..11 各模组），
+     不能再按 0/1 二分，否则 FU、K'Rakoth、Voided 的星球两档都匹配不到 */
+  const sc={};
+  PL.forEach(p=>{ sc[p.src]=(sc[p.src]||0)+1; });
+  const skeys=Object.keys(sc).map(Number).sort((a,b)=>a-b);
+  const nBase=sc[0]||0, nMod=PL.length-nBase;
+  const chip=(v,label,n)=>`<button class="pchip${pstate.src===v?' on':''}" data-src="${v}"
+    title="${esc(label)} · ${n} 种星球">${esc(label)} <span class="tc">${n}</span></button>`;
+  const srcChips=[`<button class="pchip${pstate.src<0?' on':''}" data-src="-1">全部来源</button>`]
+    .concat(nBase?[chip(0,'本体',nBase)]:[])
+    .concat(nMod?[chip(-2,'模组（合计）',nMod)]:[])
+    .concat(skeys.filter(k=>k>0).map(k=>chip(k,SR[k]||('模组'+k),sc[k])));
   const tc={};
   PL.forEach(p=>{ for(let i=p.threat[0];i<=p.threat[1];i++) tc[i]=(tc[i]||0)+1; });
   const maxT=Math.max(...PL.map(p=>p.threat[1]),1);
@@ -1283,7 +1301,7 @@ function buildPlanetTabs(){
     tiers+=`<button class="pchip${pstate.t===i?' on':''}" data-t="${i}"
       title="${thrFull(i)} · ${tc[i]||0} 种星球">${i} 级${tc[i]?` <span class="tc">${tc[i]}</span>`:''}</button>`;
   }
-  box.innerHTML=srcs.map(([v,l])=>`<button class="pchip${pstate.src===+v?' on':''}" data-src="${v}">${l}</button>`).join('')+tiers;
+  box.innerHTML=srcChips.join('')+tiers;
   box.querySelectorAll('[data-src]').forEach(b=>b.onclick=()=>{
     pstate.src=+b.dataset.src; buildPlanetTabs(); renderPlanets(true);
   });
@@ -1333,7 +1351,7 @@ function openPlanet(p, keep){
     : (t0>=1 ? `${t0}–${t1} · ${THR_NAME[t0-1]}–${THR_NAME[t1-1]}` : `${t0}–${t1}`);
   db.innerHTML=[
     `<span class="badge" title="${esc(THR_DESC[t0-1]||THR_DESC[t1-1]||'')}">威胁 ${esc(thrTxt)}</span>`,
-    `<span class="badge">${p.src?'模组':'本体'}</span>`,
+    `<span class="badge">${esc(SR[p.src]||(p.src?'模组':'本体'))}</span>`,
     `<span class="badge">${p.nBiomes} 个群系</span>`
   ].join('');
 
@@ -2317,7 +2335,7 @@ function merCard(m){
   return `<article class="pcard" data-rid="${esc(id)}">
     <div class="pthumb"><span class="mchar" style="background:${col}22;color:${col}">${esc((name||'?').slice(0,1))}</span></div>
     <div class="pwrap">
-      <div class="phd"><h3>${esc(name)}</h3>${src?'<span class="psrc">模组</span>':''}</div>
+      <div class="phd"><h3>${esc(name)}</h3>${src?`<span class="psrc">${esc(SR[src]||'模组')}</span>`:''}</div>
       <div class="pbi">${pre?esc(pre)+(items.length>3?` 等 ${items.length} 种`:''):'—'}</div>
       <div class="pstats">
         <span class="pst"><b>${items.length}</b> 种商品</span>
@@ -2359,9 +2377,13 @@ function renderMerchants(reset){
   }else if(more) more.remove();
 }
 function buildMerchantTabs(){
-  const n0=MER.filter(m=>m[2]===0).length, n1=MER.length-n0;
+  /* 同星球页：来源是模组注册序号，按实际取值出档，避免 FU / K'Rakoth 的商人被 “模组” 漏掉 */
+  const c={};
+  MER.forEach(m=>{ c[m[2]]=(c[m[2]]||0)+1; });
   const mk=(v,label,n)=>`<button class="pchip${rstate.src===v?' on':''}" data-src="${v}">${label} ${n}</button>`;
-  $('#rtabs').innerHTML=mk('','全部',MER.length)+mk('0','本体',n0)+(n1?mk('1','模组',n1):'');
+  $('#rtabs').innerHTML=mk('','全部',MER.length)+
+    Object.keys(c).map(Number).sort((a,b)=>a-b)
+      .map(k=>mk(String(k),SR[k]||(k?'模组'+k:'未知'),c[k])).join('');
   $('#rtabs').querySelectorAll('[data-src]').forEach(b=>b.onclick=()=>{
     rstate.src=b.dataset.src; buildMerchantTabs(); renderMerchants(true);
   });
@@ -2374,7 +2396,7 @@ function openMerchant(m){
   dn.textContent=name;
   did.textContent=id;
   db.innerHTML=[
-    `<span class="badge">${src?'模组':'本体'}</span>`,
+    `<span class="badge">${esc(SR[src]||(src?'模组':'本体'))}</span>`,
     num?`<span class="badge">同时上架 ${num} 件</span>`:''
   ].filter(Boolean).join('');
 
