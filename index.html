@@ -199,6 +199,17 @@ select{
 .efchip.pro b{color:#1f5f38}
 .efchip.stat{color:#8a5a15;background:#fdf3e4;border-color:#f0ddbd}
 .efchip.stat b{color:#754a10}
+/* Boss 图鉴 */
+.bthumb{background:
+  radial-gradient(circle at 50% 60%, var(--accent-soft), transparent 70%)}
+.bossimg{max-width:100%;max-height:100%;object-fit:contain;image-rendering:pixelated;
+  filter:drop-shadow(0 4px 10px rgba(20,30,50,.18))}
+.bshp b{color:#c0392b}
+.bsatk{color:#8a5a15;background:#fdf3e4;border-color:#f0ddbd}
+.bstory{font-size:12.8px;line-height:1.85;color:var(--txt2);white-space:pre-wrap;
+  background:var(--bg2);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;
+  padding:11px 14px}
+.bcard:hover{border-color:var(--accent)}
 .crewsrc .ok{color:#2f7a4a;font-weight:600}
 .crewsrc .no{color:var(--mut);font-weight:600}
 /* 效果说明浮层 */
@@ -574,6 +585,7 @@ footer b{color:var(--txt2);font-weight:600}
       <button data-p="items" class="on">物品 / 配方</button>
       <button data-p="planets">星球百科</button>
       <button data-p="monsters">怪物图鉴</button>
+      <button data-p="boss">Boss 图鉴</button>
       <button data-p="merchants">商人</button>
       <button data-p="crew">船员</button>
       <button data-p="epp">防护背包 / 模块</button>
@@ -689,6 +701,16 @@ footer b{color:var(--txt2);font-weight:600}
   <div class="pgrid" id="egrid"></div>
 </main>
 
+<main id="osview" hidden>
+  <div class="cnote">收录<b>交战时会占据屏幕底部血条的 Boss</b>：本体剧情 Boss、远古守护者，以及 FU / Arcana 等模组中带专属血条的强敌（共 58 个）。数据取自怪物配置（血量 / 防御 / 接触伤害 / 伤害倍率 / 击退抗性）、动画状态（攻击动作）与游戏内典籍（背景故事）。<b>没写过典籍的 Boss 会标注「暂无记载」</b>，只列战斗档案。</div>
+  <div class="pfilter">
+    <input id="osq" type="search" autocomplete="off" spellcheck="false" placeholder="搜索 Boss 名 / 攻击方式（如 光束 / 召唤）">
+    <div class="pchips" id="ostabs"></div>
+    <span class="pcount" id="oscount"></span>
+  </div>
+  <div class="pgrid" id="osgrid"></div>
+</main>
+
 <main id="bview" hidden>
   <div class="pfilter">
     <input id="bq" type="search" autocomplete="off" placeholder="搜索材料 / 效果 / 药水">
@@ -748,6 +770,7 @@ let ANO = D.anomalies || [], AIC = D.aIcons || [];      // 轨道目标（同上
 let LC = D.liqCollect || {};                            // 液体收集器（随 world 加载）
 let CREW = D.crew || {roles:[],fx:{}};                  // 船员效果（随 world 加载）
 let EPP = D.epp || {packs:[],augs:[],fx:{}};            // 防护背包 / EPP 模块（随 world 加载）
+let BOSS = D.boss || {list:[],meta:{}};                 // Boss 图鉴（随 world 加载）
 const THR_NAME=['无害','低危','中等','高风险','危险','极端','致命','不可能','无法估量','免谈'];
 const THR_ROMAN=['I','II','III','IV','V','VI','VII','VIII','IX','X'];
 const THR_FULL=THR_NAME.map((n,i)=>`${n}（${THR_ROMAN[i]}）`);
@@ -1849,6 +1872,186 @@ document.addEventListener('click',e=>{
 });
 window.addEventListener('resize',closeEfPop);
 
+/* ================= Boss 图鉴 ================= */
+/* d.boss.list = [[id, srcIdx, hp, prot, touch, pmult, grit, stages, [攻击模式...],
+                   [故事标题, 故事正文] | null, 头像base64], ...]
+   名称 / 掉落 / 出没星球复用 monsters 表（按 id 关联） */
+const osst={q:'',src:'',shown:0};
+const PAGE_O=18;
+const osgrid=$('#osgrid'), oscount=$('#oscount');
+
+function bossMon(id){ return MON.find(m=>m[0]===id) || null; }
+/* 同名 Boss（如四种远古守护者）用 id 里的元素词区分 */
+const BOSSNAME={};
+const BOSS_TAG={
+  electric:'电击', fire:'火焰', ice:'冰霜', poison:'毒素', shadow:'暗影', holy:'神圣',
+  arcane:'奥秘', azure:'蔚蓝', vermilion:'朱红', molten:'熔岩', plague:'瘟疫', blood:'血',
+  sun:'日耀', moon:'月华', frost:'霜', storm:'风暴', dark:'黑暗', gold:'黄金',
+  cosmo:'宇宙', myriad:'万象', terminus:'终焉', wandering:'游荡', mage:'法师',
+};
+function bossTagOf(id){
+  const s=String(id).toLowerCase();
+  for(const k in BOSS_TAG){ if(s.includes(k)) return BOSS_TAG[k]; }
+  return '';
+}
+function buildBossNames(){
+  const base=b=>{ const m=bossMon(b[0]); return (m&&m[1])||b[0]; };
+  const cnt={};
+  BOSS.list.forEach(b=>{ const n=base(b); cnt[n]=(cnt[n]||0)+1; });
+  BOSS.list.forEach(b=>{
+    const n=base(b);
+    if(cnt[n]>1){
+      const t=bossTagOf(b[0]);
+      BOSSNAME[b[0]] = t ? `${n}（${t}）` : `${n}（${String(b[0]).replace(/boss$/,'')}）`;
+    }else{
+      BOSSNAME[b[0]]=n;
+    }
+  });
+}
+function bossName(b){ return BOSSNAME[b[0]] || ((bossMon(b[0])||[])[1]) || b[0]; }
+function bossKey(b){
+  const m=bossMon(b[0]);
+  const extra=m?(' '+(m[4]||[]).map(x=>x[1]).join(' ')):'';
+  return (bossName(b)+' '+b[0]+' '+(b[8]||[]).join(' ')+' '+(b[9]?b[9].join(' '):'')+extra).toLowerCase();
+}
+function bossList(){
+  const q=osst.q.trim().toLowerCase();
+  let arr=(BOSS.list||[]).slice();
+  if(osst.src!=='') arr=arr.filter(b=>String(b[1])===osst.src);
+  if(q) arr=arr.filter(b=>bossKey(b).includes(q));
+  return arr;
+}
+function bossCard(b){
+  const [id,src,hp,prot,touch,pmult,grit,stages,atks,story,icon]=b;
+  const nm=bossName(b);
+  const sr=SR[src]||'';
+  const m=bossMon(id);
+  const drops=m?(m[4]||[]).length:0;
+  const thum=icon?`<img class="bossimg" src="data:image/png;base64,${icon}" alt="">`
+    :`<span class="mchar" style="background:${PALETTE[ihash(nm)%PALETTE.length]}22;color:${PALETTE[ihash(nm)%PALETTE.length]}">${esc((nm||'?').slice(0,1))}</span>`;
+  const atk=(atks||[]).slice(0,3).map(a=>`<span class="pst bsatk">${esc(a)}</span>`).join('');
+  return `<article class="pcard bcard" data-b="${esc(id)}">
+    <div class="pthumb bthumb">${thum}</div>
+    <div class="pwrap">
+      <div class="phd"><h3>${esc(nm)}</h3>${sr&&sr!=='本体'?`<span class="psrc">${esc(sr)}</span>`:''}
+        ${stages>1?`<span class="psrc" style="opacity:.7">${stages} 阶段</span>`:''}</div>
+      <div class="pstats">
+        <span class="pst bshp">❤ <b>${hp!=null?hp:'?'}</b> 生命</span>
+        ${touch?`<span class="pst">⚔ 接触 <b>${touch}</b></span>`:''}
+        ${pmult&&pmult!==1?`<span class="pst">×${pmult} 伤害</span>`:''}
+      </div>
+      <div class="pstats">${atk||'<span class="pst mut">攻击方式未标注</span>'}</div>
+      <div class="crewsrc mut">${story?'有背景故事':'暂无典籍记载'} · 掉落 ${drops} 种</div>
+    </div>
+  </article>`;
+}
+function renderBoss(reset){
+  if(!Object.keys(BOSSNAME).length && (BOSS.list||[]).length) buildBossNames();
+  if(reset) osst.shown=0;
+  const all=bossList();
+  const batch=all.slice(osst.shown, osst.shown+PAGE_O);
+  osst.shown+=batch.length;
+  const html=batch.map(bossCard).join('');
+  if(reset) osgrid.innerHTML=html || `<div class="empty" style="grid-column:1/-1"><div class="big">👹</div>没有匹配的 Boss</div>`;
+  else osgrid.insertAdjacentHTML('beforeend', html);
+  const n=BOSS.list.length;
+  const nStory=BOSS.list.filter(b=>b[9]).length;
+  oscount.innerHTML=`共 <b>${n}</b> 个 Boss · ${nStory} 个有典籍记载`;
+  let more=document.getElementById('osmore');
+  if(osst.shown<all.length){
+    if(!more){
+      more=document.createElement('button'); more.id='osmore'; more.className='morep';
+      more.onclick=()=>renderBoss(false); osgrid.after(more);
+    }
+    more.textContent=`加载更多（还有 ${all.length-osst.shown} 个）`;
+  }else if(more) more.remove();
+}
+function buildBossTabs(){
+  const c={};
+  BOSS.list.forEach(b=>{ c[b[1]]=(c[b[1]]||0)+1; });
+  const mk=(v,label,n)=>`<button class="pchip${osst.src===v?' on':''}" data-osrc="${v}">${label} ${n}</button>`;
+  $('#ostabs').innerHTML=mk('','全部',BOSS.list.length)+
+    Object.keys(c).sort((a,b)=>c[b]-c[a]).map(k=>mk(String(k),SR[k]||('来源'+k),c[k])).join('');
+  $('#ostabs').querySelectorAll('[data-osrc]').forEach(bt=>bt.onclick=()=>{
+    osst.src=bt.dataset.osrc; buildBossTabs(); renderBoss(true);
+  });
+}
+function openBoss(id){
+  const b=(BOSS.list||[]).find(x=>x[0]===id);
+  if(!b) return;
+  const [bid,src,hp,prot,touch,pmult,grit,stages,atks,story,icon]=b;
+  const m=bossMon(bid);
+  const nm=bossName(b);
+  di.innerHTML=icon?`<img class="bossimg" src="data:image/png;base64,${icon}" alt="">`
+    :`<span class="mchar">${esc((nm||'?').slice(0,1))}</span>`;
+  delete di.dataset.r;
+  dn.textContent=nm;
+  did.textContent=bid;
+  const badges=[];
+  if(SR[src]) badges.push(`<span class="badge">${esc(SR[src])}</span>`);
+  if(stages>1) badges.push(`<span class="badge">${stages} 阶段</span>`);
+  badges.push(`<span class="badge">血条 Boss</span>`);
+  db.innerHTML=badges.join('');
+
+  let h='';
+  // 战斗数值
+  const st=[];
+  if(hp!=null) st.push(['生命值', hp]);
+  if(prot!=null) st.push(['防御', prot]);
+  if(touch!=null) st.push(['接触伤害', touch]);
+  if(pmult!=null) st.push(['伤害倍率', '×'+pmult]);
+  if(grit!=null) st.push(['击退抗性', grit]);
+  h+=`<div class="dsec"><h4>战斗数值</h4><div class="acq">${
+    st.map(([k,v])=>`<div class="acrow"><span class="k t0" style="color:var(--accent);background:var(--accent-soft)">${esc(k)}</span><span class="v"><b>${esc(v)}</b></span></div>`).join('')
+  }</div></div>`;
+
+  // 攻击方式
+  h+=`<div class="dsec"><h4>攻击方式</h4><div class="acq">`;
+  if(atks&&atks.length){
+    h+=`<div class="acrow"><span class="k t0" style="color:#a13a2e;background:#fdeeea">动作</span>
+      <span class="v">${atks.map(a=>esc(a)).join('、')}</span></div>`;
+  }else{
+    h+=`<div class="none">配置里没有具名攻击动作（多为纯冲撞 / 接触伤害型）。</div>`;
+  }
+  if(touch) h+=`<div class="acrow"><span class="k t0" style="color:#8a7a2f;background:#f7f3df">贴身</span>
+    <span class="v">接触造成 <b>${touch}</b> 点伤害${pmult&&pmult!==1?`，弹幕/技能伤害 ×${pmult}`:''}</span></div>`;
+  h+=`</div></div>`;
+
+  // 背景故事
+  if(story&&story[1]){
+    h+=`<div class="dsec"><h4>背景故事 · ${esc(story[0])}</h4>
+      <div class="bstory">${esc(story[1])}</div></div>`;
+  }else{
+    h+=`<div class="dsec"><h4>背景故事</h4><div class="none">游戏内没有关于它的典籍记载，只能从战斗配置还原它的行为。</div></div>`;
+  }
+
+  // 掉落
+  if(m && (m[4]||[]).length){
+    h+=`<div class="dsec"><h4>掉落 · ${m[4].length} 种</h4><div class="pbl">${
+      m[4].map(([iid,dn2])=>{
+        const k=IX[iid];
+        return `<span class="ing">${k!==undefined?iconHTML(k):''}<span class="nm">${esc(dn2)}</span></span>`;
+      }).join('')
+    }</div></div>`;
+  }
+  // 出没星球
+  if(m && (m[5]||[]).length){
+    const pn=m[5].map(pid=>{ const p=PL.find(x=>x.id===pid); return p?p.name:pid; });
+    h+=`<div class="dsec"><h4>出没星球 / 地点</h4><div class="acq">
+      <div class="acrow"><span class="k t0" style="color:var(--accent);background:var(--accent-soft)">生成</span>
+      <span class="v">${pn.map(x=>esc(x)).join('、')}</span></div></div></div>`;
+  }
+  dbody.innerHTML=h;
+  drawer.classList.add('on'); backdrop.classList.add('on');
+  drawer.setAttribute('aria-hidden','false');
+  drawer.scrollTop=0;
+}
+$('#osq').oninput=e=>{ osst.q=e.target.value; renderBoss(true); };
+osgrid.onclick=e=>{
+  const card=e.target.closest('[data-b]');
+  if(card) openBoss(card.dataset.b);
+};
+
 /* ================= 酿造学（Brewology） ================= */
 let BREW = D.brew || {};
 const ROMAN=['I','II','III','IV','V','VI','VII','VIII','IX','X'];
@@ -2070,6 +2273,7 @@ function setPage(pg){
   $('#bview').hidden = pg!=='brew';
   $('#cview').hidden = pg!=='crew';
   $('#eview').hidden = pg!=='epp';
+  $('#osview').hidden = pg!=='boss';
   // 物品侧的搜索框、模式切换、排序与筛选栏，在星球页一并收起
   document.querySelector('.searchrow').hidden = !isItems;
   $('#filters').hidden = !isItems;
@@ -2081,6 +2285,7 @@ function setPage(pg){
   if(pg==='brew'){ buildBrewTabs(); renderBrew(true); }
   if(pg==='crew'){ buildCrewTabs(); renderCrew(true); }
   if(pg==='epp'){ buildEppTabs(); renderEpp(true); }
+  if(pg==='boss'){ buildBossTabs(); renderBoss(true); }
 }
 document.querySelectorAll('#pagebar button').forEach(b=>b.onclick=()=>setPage(b.dataset.p));
 pgrid.addEventListener('click',e=>{
@@ -2637,6 +2842,7 @@ function applyPart(name){
     PL=D.planets||[]; MON=D.monsters||[]; MER=D.merchants||[]; WI=D.weatherInfo||{};
     ANO=D.anomalies||[]; AIC=D.aIcons||[]; BREW=D.brew||{}; LC=D.liqCollect||{}; CREW=D.crew||{roles:[],fx:{}};
     EPP=D.epp||{packs:[],augs:[],fx:{}};
+    BOSS=D.boss||{list:[],meta:{}};
     if(state.page==='planets'){ buildPlanetTabs(); renderPlanets(true); }
     if(state.page==='monsters'){ buildMonsterTabs(); renderMonsters(true); }
     if(state.page==='merchants'){ buildMerchantTabs(); renderMerchants(true); }
@@ -2644,6 +2850,7 @@ function applyPart(name){
     if(state.page==='brew'){ buildBrewTabs(); renderBrew(true); }
     if(state.page==='crew'){ buildCrewTabs(); renderCrew(true); }
     if(state.page==='epp'){ buildEppTabs(); renderEpp(true); }
+    if(state.page==='boss'){ buildBossTabs(); renderBoss(true); }
   }
 }
 if(!PART.icons) loadPart('icons','data/icons.js').then(ok=>{ if(ok) applyPart('icons'); });
