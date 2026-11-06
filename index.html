@@ -429,6 +429,22 @@ html[data-theme="dark"] .sbadge.b{color:#6ed49a}
   background:radial-gradient(circle at 34% 26%,color-mix(in srgb,var(--tc) 45%,#fff),var(--tc) 55%,color-mix(in srgb,var(--tc) 65%,#000))}
 .pbl{display:flex;flex-wrap:wrap;gap:7px}
 .bchip{font-size:12.5px;background:var(--bg2);border:1px solid var(--line2);border-radius:8px;padding:4px 10px;color:var(--txt2)}
+/* 地心形态 */
+.pst.core.liquid{color:#cf4f4a;background:color-mix(in srgb,#cf4f4a 10%,transparent)}
+.pst.core.solid{color:var(--mut)}
+.pst.core.mixed{color:#a9791f;background:color-mix(in srgb,#a9791f 10%,transparent)}
+html[data-theme="dark"] .pst.core.liquid{color:#ef8079}
+.coreform{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-bottom:9px}
+.cftag{font-size:11px;line-height:18px;padding:0 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.cftag.liquid{color:#cf4f4a;background:color-mix(in srgb,#cf4f4a 12%,transparent)}
+.cftag.solid{color:var(--mut);background:var(--bg2)}
+.cftag.mixed{color:#a9791f;background:color-mix(in srgb,#a9791f 12%,transparent)}
+.cfd{font-size:12.5px;color:var(--txt2);line-height:1.55;flex:1;min-width:0}
+.coreline{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-top:7px}
+.coreline .clk{font-size:11px;color:var(--mut);flex:0 0 auto;padding-top:1px}
+.coreline .pbl{gap:6px}
+html[data-theme="dark"] .cftag.liquid{color:#ef8079}
+html[data-theme="dark"] .cftag.mixed{color:#d6ab5b}
 .ptbl{width:100%;border-collapse:collapse;font-size:12.5px}
 .ptbl th{text-align:left;font-weight:600;color:var(--mut);font-size:11.5px;padding:0 0 6px;border-bottom:1px solid var(--line2)}
 .ptbl td{padding:11px 0;border-bottom:1px solid var(--line2);vertical-align:top}
@@ -1278,7 +1294,15 @@ function planetCard(p){
         <span class="pst"><b>${nW}</b> 种天气</span>
         ${liqName(p.id,0)?`<span class="pst liq" title="液体收集器在此星球冷凝出的液体">液体 <b>${esc(liqName(p.id,0))}</b>${liqRec(p.id,0).special?'<i>*</i>':''}</span>`:''}
         ${atmSummary(p.id)?`<span class="pst liq" title="空气冷凝器在此星球可凝出的试剂池">空气 <b>${esc(atmSummary(p.id))}</b></span>`:''}
-        ${env.length?`<span class="pst env">${env.map(esc).join(' · ')}</span>`:''}
+        ${(()=>{const ci=p.coreInfo||{};if(!ci.form)return '';
+          const lq=(ci.liq[0]||'液态').replace(/^地心/,'');
+          const lb=ci.form==='liquid'?`地心 <b>${esc(lq)}</b>`
+            : ci.form==='solid'?'地心 <b>实心</b>'
+            : '地心 <b>液态或实心</b>';
+          const tt=ci.form==='liquid'?`核心底部是${ci.liq.join('、')}`
+            : ci.form==='solid'?'核心整块实心，没有液体'
+            : `核心随机：${ci.liq.join('、')} 或实心`;
+          return `<span class="pst core ${esc(ci.form)}" title="${esc(tt)}">${lb}</span>`;})()}${env.length?`<span class="pst env">${env.map(esc).join(' · ')}</span>`:''}
       </div>
       <span class="pgo">查看档案 ›</span>
     </div>
@@ -1314,7 +1338,7 @@ function renderPlanets(reset){
       `<div class="empty" style="grid-column:1/-1"><div class="big">🪐</div>${esc(tip)}</div>`;
   }
   else pgrid.insertAdjacentHTML('beforeend', batch.map(planetCard).join(''));
-  pcount.innerHTML=`共 <b>${all.length}</b> 种星球类型 · 矿产取该等级可出现的上限`;
+  pcount.innerHTML=`共 <b>${all.length}</b> 种星球类型 · 矿产取该等级可出现的上限 · 卡片上标了地心是液态还是实心`;
   let more=document.getElementById('pmore');
   if(pstate.shown<all.length){
     if(!more){
@@ -1509,11 +1533,27 @@ function openPlanet(p, keep){
   }
   h+=`</div>`;
 
-  /* 地心 */
+  /* 地心：形态（液态 / 实心）+ 液体 / 主体岩层 / 核心群系 */
+  const ci=p.coreInfo||{}, cform=ci.form||'', cliq=ci.liq||[], cblk=ci.blk||[];
+  const CFORM={liquid:'液态核心',solid:'实心核心',mixed:'液态或实心'};
   h+=`<div class="dsec psec"><h4>地心</h4>`;
-  h+= (p.core||[]).length
-    ? `<div class="pbl">${p.core.map(n=>`<span class="bchip">${esc(n)}</span>`).join('')}</div>`
-    : `<div class="none">该类型没有核心层。</div>`;
+  if(cform){
+    const ftxt = cform==='liquid'
+      ? `底部是一整片<b>${esc(cliq.join('、')||'液体')}</b>，一路挖到底会掉进去`
+      : (cform==='solid'
+        ? '整块实心，挖到最深处也不会遇到液体'
+        : `同一类型下两种都有：底部是 <b>${esc(cliq.join('、'))}</b>，或者整块实心`);
+    h+=`<div class="coreform"><span class="cftag ${esc(cform)}">${esc(CFORM[cform]||'')}</span><span class="cfd">${ftxt}</span></div>`;
+  }
+  if(cblk.length){
+    h+=`<div class="coreline"><span class="clk">主体岩层</span><span class="pbl" style="display:inline-flex">${
+      cblk.map(n=>`<span class="bchip">${esc(n)}</span>`).join('')}</span></div>`;
+  }
+  if((p.core||[]).length){
+    h+=`<div class="coreline"><span class="clk">核心群系</span><span class="pbl" style="display:inline-flex">${
+      p.core.map(n=>`<span class="bchip">${esc(n)}</span>`).join('')}</span></div>`;
+  }
+  h+=`<div class="lvn">形态取自核心层配置：底部有液体海＝液态核心，没有＝实心；并列多个核心区的类型每次生成随机取一个。</div>`;
   h+=`</div>`;
 
   /* 天气：名称 + 出现概率 + 效果说明 */
