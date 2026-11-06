@@ -2730,16 +2730,21 @@ function openDrawer(i){
     h+=`<div class="dsec"><h4>矿物产地</h4><div class="acq">${rows}</div></div>`;
   }
 
-  /* 计算机研究 */
+  /* 计算机研究：RS[i] = [点数, 消耗个数, 是否近似]；[0,0] = 材质 / 液体 / 容器，放不进研究机 */
   const rv=RS[i];
-  if(rv&&rv[0]){
+  if(rv&&rv[0]===0&&rv[1]===0){
+    h+=`<div class="dsec"><h4>计算机研究</h4><div class="acq">
+      <div class="acrow"><span class="k t0" style="color:var(--mut);background:var(--bg2)">不可研究</span>
+      <span class="v" style="color:var(--mut)">方块材质 / 液体 / 容器类物品放不进研究机，游戏里会直接拒绝进料</span></div>
+    </div></div>`;
+  }else if(rv&&rv[0]){
     const q=rv[1]>1?`<b>${rv[1]}</b> 个`:'1 个';
-    const p=rv[1]>1?`<b>1</b> 点`:`<b>${rv[0]}</b> 点${rv[0]<3?'（约）':''}`;
+    const p=rv[1]>1?`<b>1</b> 点`:`<b>${rv[0]}</b> 点${rv[2]?'（约）':''}`;
     h+=`<div class="dsec"><h4>计算机研究</h4><div class="acq">
       <div class="acrow"><span class="k t0" style="color:var(--blue);background:var(--blue-soft)">研究点数</span>
       <span class="v">${q} → ${p}</span></div>
       <div class="acrow"><span class="k t0" style="color:var(--mut);background:var(--bg2)">机器</span>
-      <span class="v" style="color:var(--mut)">基础计算机 10 秒 / 个人计算机 2 秒 / 高级计算机 1.5 秒 / 研究服务器 1 秒（每件 5% 折算，倍率相同）</span></div>
+      <span class="v" style="color:var(--mut)">基础计算机 10 秒 / 个人计算机 2 秒 / 高级计算机 1.5 秒 / 研究服务器 1 秒（每件 5% 折算，倍率相同；点数向下取整，小数部分按概率 +1，故标「约」）</span></div>
     </div></div>`;
   }
 
