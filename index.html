@@ -429,6 +429,18 @@ html[data-theme="dark"] .sbadge.b{color:#6ed49a}
   background:radial-gradient(circle at 34% 26%,color-mix(in srgb,var(--tc) 45%,#fff),var(--tc) 55%,color-mix(in srgb,var(--tc) 65%,#000))}
 .pbl{display:flex;flex-wrap:wrap;gap:7px}
 .bchip{font-size:12.5px;background:var(--bg2);border:1px solid var(--line2);border-radius:8px;padding:4px 10px;color:var(--txt2)}
+/* 群系 → 地形物块 */
+.biolist{display:flex;flex-direction:column;gap:7px}
+.biorow{display:flex;gap:9px;align-items:flex-start;flex-wrap:wrap;padding-bottom:7px;border-bottom:1px dashed var(--line2)}
+.biorow:last-child{border-bottom:0;padding-bottom:0}
+.bname{font-size:12.5px;color:var(--txt);flex:0 0 118px;width:118px;line-height:20px;padding-top:2px}
+.bbl{display:flex;gap:5px;flex-wrap:wrap;flex:1;min-width:0}
+.bbl .bchip{font-size:12px;padding:3px 9px;line-height:17px;border-radius:7px}
+.bbl .ing{font-size:12px;padding:2px 9px 2px 3px;border-radius:7px}
+.bbl .ing.bmain{background:color-mix(in srgb,var(--txt) 18%,var(--bg2));border-color:color-mix(in srgb,var(--txt) 30%,var(--line2));color:var(--txt);font-weight:500}
+.bbl .ing.bmain:hover{border-color:var(--accent);color:var(--accent)}
+.bbl .bchip.bmain{color:var(--txt);font-weight:500;background:color-mix(in srgb,var(--txt) 15%,var(--bg2));border-color:color-mix(in srgb,var(--txt) 24%,var(--line2))}
+.bbl.mut{color:var(--mut);font-size:12.5px;line-height:22px}
 /* 地心形态 */
 .ing .opp{font-style:normal;font-size:10.5px;color:var(--mut);margin-left:5px;padding:0 4px;border-radius:4px;background:var(--bg2);border:1px solid var(--line2);line-height:15px;flex:0 0 auto}
 .pst.core.liquid{color:#cf4f4a;background:color-mix(in srgb,#cf4f4a 10%,transparent)}
@@ -688,7 +700,7 @@ footer b{color:var(--txt2);font-weight:600}
 
 <main id="pview" hidden>
   <div class="pfilter">
-    <input id="pq" type="search" autocomplete="off" placeholder="搜索星球类型 / 矿物 / 群系">
+    <input id="pq" type="search" autocomplete="off" placeholder="搜索星球类型 / 矿物 / 群系 / 地形物块">
     <div class="pchips" id="ptabs"></div>
     <span class="pcount" id="pcount"></span>
   </div>
@@ -1319,6 +1331,8 @@ function planetList(){
     if(!q) return true;
     if(p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)) return true;
     if((p.biomes||[]).some(b=>b.toLowerCase().includes(q))) return true;
+    const _bb=D.bblocks||[];
+    if((p.biomeBlocks||[]).some(([n,ix])=>(ix||[]).some(i=>{const e=_bb[i];return e&&String(e[0]).toLowerCase().includes(q);}))) return true;
     return (p.layers||[]).some(([g,ores])=>ores.some(o=>o[1].toLowerCase().includes(q)));
   }).sort((a,b)=>{
     if(a.threat[0]!==b.threat[0]) return a.threat[0]-b.threat[0];
@@ -1650,9 +1664,35 @@ function openPlanet(p, keep){
     h+=`</div>`;
   }
 
-  /* 群系 */
-  h+=`<div class="dsec psec"><h4>群系 · ${(p.biomes||[]).length}</h4><div class="pbl">${
-    chipList(p.biomes||[], 14, 'biome') || '<span class="none">无</span>'}</div></div>`;
+  /* 群系：每个群系一行，第一个物块是主体方块，其余是夹杂方块（不含矿石） */
+  const BB=D.bblocks||[];
+  const bmap=new Map((p.biomeBlocks||[]).map(([n,ix])=>[n,(ix||[]).map(i=>BB[i]).filter(Boolean)]));
+  const bchip=(nm,oi,main)=>{
+    const tip=(main?'主体方块':'夹杂方块')+(oi>=0?' · 点击查看合成表':'');
+    return oi>=0
+      ? `<span class="ing${main?' bmain':''}" data-oi="${oi}" title="${esc(tip)}">${iconHTML(oi)}<span class="nm">${esc(nm)}</span></span>`
+      : `<span class="bchip${main?' bmain':''}" title="${esc(tip)}">${esc(nm)}</span>`;
+  };
+  const allB=p.biomes||[];
+  const nShow=pExpand['biome']?allB.length:14;
+  const brow=n=>{
+    const bs=bmap.get(n)||[];
+    return `<div class="biorow"><span class="bname">${esc(n)}</span>${
+      bs.length
+        ? `<span class="bbl">${bs.map(([nm,oi],i)=>bchip(nm,oi,i===0)).join('')}</span>`
+        : `<span class="bbl mut">—</span>`}</div>`;
+  };
+  h+=`<div class="dsec psec"><h4>群系 · ${allB.length}</h4>`;
+  if(allB.length){
+    h+=`<div class="biolist">${allB.slice(0,nShow).map(brow).join('')}</div>`;
+    if(allB.length>14){
+      h+=`<button class="pmor" data-exp="biome">${pExpand['biome']?'收起':`+${allB.length-14} 个群系`}</button>`;
+    }
+    h+=`<div class="lvn">每行是一个群系的<b>地形物块</b>：加深的是该群系的<b>主体方块</b>，其余是混合生成的夹杂方块；<b>点物块可查看它的合成配方</b>。矿石不在此列（见上方「矿产」）。</div>`;
+  } else {
+    h+=`<div class="none">无</div>`;
+  }
+  h+=`</div>`;
 
   h+=`<div class="pfoot">矿产先按<b>来源</b>分成「星球（地表 / 地下 / 地心）」与「轨道（太空小行星带）」两块，各块内再按<b>物品稀有度</b>五档展开；同档内按跨星球稀缺度排序（能在越少星球挖到越靠前）。「N 种 · 描述」里的说明是该档矿物在星系里的常见程度。</div>`;
 
