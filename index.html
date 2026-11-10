@@ -430,7 +430,14 @@ html[data-theme="dark"] .sbadge.b{color:#6ed49a}
 .pbl{display:flex;flex-wrap:wrap;gap:7px}
 .bchip{font-size:12.5px;background:var(--bg2);border:1px solid var(--line2);border-radius:8px;padding:4px 10px;color:var(--txt2)}
 /* 群系 → 地形物块 */
-.biolist{display:flex;flex-direction:column;gap:7px}
+.bgrp{margin-bottom:14px}
+.bgrp:last-of-type{margin-bottom:0}
+.bgrphd{display:flex;align-items:baseline;gap:8px;font-size:12.5px;font-weight:600;color:var(--txt);
+  margin-bottom:7px;padding-bottom:5px;border-bottom:1px solid var(--line2)}
+.bgrphd em{font-style:normal;font-size:11px;line-height:15px;padding:0 5px;border-radius:5px;
+  background:var(--bg2);border:1px solid var(--line2);color:var(--mut);font-weight:400}
+.bgrphd i{font-style:normal;font-size:10.5px;color:var(--mut);font-weight:400;margin-left:auto}
+.bgrp .biorow{border-bottom:0;padding-bottom:3px}
 .biorow{display:flex;gap:9px;align-items:flex-start;flex-wrap:wrap;padding-bottom:7px;border-bottom:1px dashed var(--line2)}
 .biorow:last-child{border-bottom:0;padding-bottom:0}
 .bname{font-size:12.5px;color:var(--txt);flex:0 0 118px;width:118px;line-height:20px;padding-top:2px}
@@ -1664,9 +1671,12 @@ function openPlanet(p, keep){
     h+=`</div>`;
   }
 
-  /* 群系：每个群系一行，第一个物块是主体方块，其余是夹杂方块（不含矿石） */
+  /* 群系：按层分组，每个群系一行；第一个物块是主体方块，其余是夹杂方块（不含矿石） */
   const BB=D.bblocks||[];
-  const bmap=new Map((p.biomeBlocks||[]).map(([n,ix])=>[n,(ix||[]).map(i=>BB[i]).filter(Boolean)]));
+  const LAYERS=['地表','浅层地下','地下 Ⅰ','地下 Ⅱ','地下 Ⅲ','地心','小行星带','大气层'];
+  const SPACE_FROM=6;                       // 6=小行星带 7=大气层，其余算星球内
+  const bmap=new Map((p.biomeBlocks||[]).map(([n,ix,ls])=>
+    [n,{bs:(ix||[]).map(i=>BB[i]).filter(Boolean), ls:ls||[]}]));
   const bchip=(nm,oi,main)=>{
     const tip=(main?'主体方块':'夹杂方块')+(oi>=0?' · 点击查看合成表':'');
     return oi>=0
@@ -1674,21 +1684,39 @@ function openPlanet(p, keep){
       : `<span class="bchip${main?' bmain':''}" title="${esc(tip)}">${esc(nm)}</span>`;
   };
   const allB=p.biomes||[];
-  const nShow=pExpand['biome']?allB.length:14;
   const brow=n=>{
-    const bs=bmap.get(n)||[];
+    const bs=(bmap.get(n)||{}).bs||[];
     return `<div class="biorow"><span class="bname">${esc(n)}</span>${
       bs.length
         ? `<span class="bbl">${bs.map(([nm,oi],i)=>bchip(nm,oi,i===0)).join('')}</span>`
         : `<span class="bbl mut">—</span>`}</div>`;
   };
+  /* 分两类：星球内（地表→地心）与太空（小行星带 / 大气层），全部展开 */
+  const minLayer=n=>{
+    const ls=(bmap.get(n)||{}).ls||[];
+    return ls.length?Math.min.apply(null,ls):0;
+  };
+  const inP=[], inS=[];
+  allB.forEach(n=>{
+    const ls=(bmap.get(n)||{}).ls||[];
+    if(!ls.length){ inP.push(n); return; }        // 没有层信息的一律算星球内
+    if(ls.some(l=>l<SPACE_FROM)) inP.push(n);
+    if(ls.some(l=>l>=SPACE_FROM)) inS.push(n);
+  });
+  const byLayer=(a,b)=>minLayer(a)-minLayer(b)||a.localeCompare(b,'zh');
+  inP.sort(byLayer); inS.sort(byLayer);
+
   h+=`<div class="dsec psec"><h4>群系 · ${allB.length}</h4>`;
   if(allB.length){
-    h+=`<div class="biolist">${allB.slice(0,nShow).map(brow).join('')}</div>`;
-    if(allB.length>14){
-      h+=`<button class="pmor" data-exp="biome">${pExpand['biome']?'收起':`+${allB.length-14} 个群系`}</button>`;
+    if(inP.length){
+      h+=`<div class="bgrp"><div class="bgrphd">星球内<em>${inP.length}</em><i>地表 → 地心</i></div>`
+        + inP.map(brow).join('') + `</div>`;
     }
-    h+=`<div class="lvn">每行是一个群系的<b>地形物块</b>：加深的是该群系的<b>主体方块</b>，其余是混合生成的夹杂方块；<b>点物块可查看它的合成配方</b>。矿石不在此列（见上方「矿产」）。</div>`;
+    if(inS.length){
+      h+=`<div class="bgrp"><div class="bgrphd">太空<em>${inS.length}</em><i>小行星带 · 大气层</i></div>`
+        + inS.map(brow).join('') + `</div>`;
+    }
+    h+=`<div class="lvn">群系分<b>星球内</b>（地表 → 浅层地下 → 地下 Ⅰ/Ⅱ/Ⅲ → 地心）与<b>太空</b>（小行星带、大气层），组内按所在的层从浅到深排列。每行加深的是<b>主体方块</b>，其余是夹杂方块；<b>点物块可查看合成配方</b>。矿石不在此列（见上方「矿产」）。</div>`;
   } else {
     h+=`<div class="none">无</div>`;
   }
