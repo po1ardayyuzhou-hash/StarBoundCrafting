@@ -640,6 +640,35 @@ footer b{color:var(--txt2);font-weight:600}
   .pop{position:fixed;left:8px;right:8px;width:auto;top:auto;bottom:8px;max-height:70vh}
   .tbl .pstation{display:none}
 }
+/* ---------- FU 生产 ---------- */
+.card.flat{cursor:default}
+.card.flat:hover{transform:none;border-color:var(--line);box-shadow:var(--shadow)}
+.card.flat:hover .ico{border-color:var(--rc,var(--line2))}
+.fulegend{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 12px}
+.futip{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:5px 10px;font-size:12px;color:var(--txt2)}
+.futip b{color:var(--txt);font-variant-numeric:tabular-nums}
+.fumach{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.futbl .fuing{display:flex;flex-wrap:wrap;gap:5px}
+.futbl .pname{min-width:0}
+.futbl .fuing .ing .nm{max-width:150px}
+.futbl td{padding-top:8px;padding-bottom:8px}
+/* 概率芯片：概率前置，去掉恒为 1 的数量 */
+.fuc{padding:2px 9px 2px 7px;gap:5px}
+.fuc .fop{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;min-width:40px;text-align:right;color:var(--txt2)}
+.fuc[data-r="legendary"] .fop{color:var(--r-legendary)}
+.fuc[data-r="rare"] .fop{color:var(--r-rare)}
+.fuc[data-r="uncommon"] .fop{color:var(--r-uncommon)}
+.fuc[data-r="common"] .fop{color:var(--txt2)}
+.fuc .nm{max-width:130px}
+.fuempty{font-size:12px;color:var(--mut)}
+/* 卡片内按稀有度分档 */
+.fugroups{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.fug{display:flex;flex-direction:column;gap:5px}
+.fugt{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mut);letter-spacing:.2px}
+.fugt:before{content:'';width:7px;height:7px;border-radius:2px;background:var(--rc,var(--line))}
+.fugt b{color:var(--txt2);font-weight:600;font-variant-numeric:tabular-nums}
+.fugt .fughint{font-size:10.5px;color:var(--mut);opacity:.9}
+.fugc{display:flex;flex-wrap:wrap;gap:5px}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -666,6 +695,7 @@ footer b{color:var(--txt2);font-weight:600}
       <button data-p="epp">防护背包 / 模块</button>
       <button data-p="brew">酿造学</button>
       <button data-p="status">状态效果</button>
+      <button data-p="fuprod">FU 生产</button>
       <button data-p="anomalies">轨道目标</button>
     </div>
 
@@ -805,6 +835,21 @@ footer b{color:var(--txt2);font-weight:600}
   </div>
   <div class="sgrid" id="stgrid"></div>
 </main>
+<main id="fview" hidden>
+  <div class="cnote">Frackin' Universe 的六类「加工产出」速查：<b>可筛粉</b>（粉筛机）、<b>可粉碎</b>（碎岩机）、<b>离心机</b>（木制 / 铁制 / 工业 / 实验室）、<b>气体离心机</b>、<b>可萃取</b>（提取实验室）、<b>可冶炼</b>（三种熔炉）。投入物与产物都会按名称、拼音、ID 匹配搜索；<b>多个产物时附带实际概率</b>——筛粉 / 粉碎的概率已按稀有度分档折算，冶炼副产物按「先过总概率、再每项独立判定」折算。</div>
+  <div class="pfilter">
+    <input id="fq" type="search" autocomplete="off" spellcheck="false" placeholder="搜索投入物 / 产物（如 铁矿石 / 硅 / ironore）">
+    <div class="pchips" id="ftabs"></div>
+    <div class="seg" id="fviewseg">
+      <button data-fv="card" class="on">卡片</button>
+      <button data-fv="table">表格</button>
+    </div>
+    <span class="pcount" id="fcount"></span>
+  </div>
+  <div id="fmach"></div>
+  <div id="fcontent"></div>
+</main>
+
 
 <main id="avview" hidden>
   <div class="pfilter">
@@ -2554,6 +2599,7 @@ function setPage(pg){
   $('#eview').hidden = pg!=='epp';
   $('#osview').hidden = pg!=='boss';
   $('#stview').hidden = pg!=='status';
+  $('#fview').hidden = pg!=='fuprod';
   // 物品侧的搜索框、模式切换、排序与筛选栏，在星球页一并收起
   document.querySelector('.searchrow').hidden = !isItems;
   $('#filters').hidden = !isItems;
@@ -2567,6 +2613,7 @@ function setPage(pg){
   if(pg==='epp'){ buildEppTabs(); renderEpp(true); }
   if(pg==='boss'){ buildBossTabs(); renderBoss(true); }
   if(pg==='status'){ buildStatusTabs(); renderStatus(true); }
+  if(pg==='fuprod'){ buildFuTabs(); buildFuMach(); buildFuView(); ensureFuprod(); }
 }
 document.querySelectorAll('#pagebar button').forEach(b=>b.onclick=()=>setPage(b.dataset.p));
 pgrid.addEventListener('click',e=>{
@@ -2864,6 +2911,260 @@ function buildStatusTabs(){
   });
 }
 $('#stq').oninput=e=>{ ststate.q=e.target.value; renderStatus(true); };
+
+/* ---------- FU 生产（筛粉 / 粉碎 / 萃取 / 冶炼） ---------- */
+const fstate={tab:'sift',q:'',mach:0,cmach:0,shown:0,view:'card'};
+const PAGE_F=60;
+let FUPROD=D&&D.fuprod?D.fuprod:null;
+const FU_TABS=[['sift','可筛粉'],['crush','可粉碎'],['cent','离心机'],['gas','气体离心机'],['extract','可萃取'],['smelt','可冶炼']];
+const FU_LABEL={sift:'可筛粉',crush:'可粉碎',cent:'离心机',gas:'气体离心机',extract:'可萃取',smelt:'可冶炼'};
+const FU_CENT_TABS=['sift','crush','cent','gas'];
+const FU_SRC={
+  sift:'粉筛机（Powder Sifter）',crush:'碎岩机（Rock Breaker）',
+  extract:'提取实验室（Extraction Lab）',smelt:'电弧熔炉 / 高炉 / 电炉'
+};
+function fuFallback(id){
+  let t=String(id).replace(/_/g,' ').replace(/tier(\d+)/i,' T$1').replace(/([a-z])([A-Z])/g,'$1 $2');
+  return t.charAt(0).toUpperCase()+t.slice(1);
+}
+function fuName(id){const k=IX[id];return k==null?fuFallback(id):(IT[k][1]||id);}
+function fuPct(p){ return p>0&&p<0.001 ? '<0.1%' : (p*100).toFixed(1)+'%'; }
+function fuCmp(a,b){return fuName(a).localeCompare(fuName(b),'zh');}
+function fuTier(t){ return t==='rarest'?'legendary':t==='rare'?'rare':t==='uncommon'?'uncommon':'common'; }
+function fuIcon(id){
+  const k=IX[id];
+  if(k!=null) return iconHTML(k);
+  const col=PALETTE[ihash(id)%PALETTE.length];
+  return `<span class="ph" style="background:${col}1f;color:${col}">${esc(fuFallback(id).slice(0,1))}</span>`;
+}
+function fuMatch(id,q){
+  if(!q) return true;
+  const k=IX[id], it=k==null?null:IT[k];
+  const hay=it?(it[1]+' '+(it[2]||'')+' '+(it[3]||'')+' '+id):fuFallback(id)+' '+id;
+  return hay.toLowerCase().includes(q);
+}
+/* 产物芯片：与配方页的 .ing 同一套样式，概率沿用 .opp 权重徽标 */
+function fuChip(id,qty,pct,tier){
+  const r=tier?` data-r="${fuTier(tier)}"`:'';
+  return `<span class="ing"${r} title="${esc(id)}">${fuIcon(id)}<span class="nm">${esc(fuName(id))}</span><em>${qty}</em>${pct!=null?`<i class="opp">${fuPct(pct)}</i>`:''}</span>`;
+}
+function fuData(){
+  const t=fstate.tab;
+  if(t==='smelt') return FUPROD.smelt[fstate.mach]||{rows:[],chance:0,none:0,name:'熔炉'};
+  if(t==='cent') return (FUPROD.cent||[])[fstate.cmach]||{rows:[],chance:0,none:0,name:'离心机'};
+  if(t==='gas') return FUPROD.gas||{rows:[],chance:0,none:0,name:'气体离心机'};
+  return FUPROD[t]||{rows:[],chance:0,none:0};
+}
+function fuMachName(){
+  const t=fstate.tab;
+  if(t==='sift') return '粉筛机';
+  if(t==='crush') return '碎岩机';
+  return fuData().name||'离心机';
+}
+function fuLegend(tab){
+  if(FU_CENT_TABS.includes(tab)){
+    const d=fuData(), c=d.chance, m=fuMachName();
+    return `<div class="cnote">${m}每次投入 <b>1</b> 个材料，最多只出 <b>1</b> 个产物：<b>${(d.none*100).toFixed(1)}%</b> 无产出，剩下 <b>${((1-d.none)*100).toFixed(1)}%</b> 先抽一个稀有度档位，再从这一档里挑一个物品。同一档里按物品「数量」反比分配，所以数量 3 的物品只有数量 1 的 1/3 机会。<br>胶囊最左边的百分比已经算好，就是<b>每次投入得到它的概率</b>。</div>
+    <div class="fulegend">
+      <span class="futip">先抽档位：极稀有 <b>${(c.rarest*100).toFixed(1)}%</b></span>
+      <span class="futip">稀有 <b>${(c.rare*100).toFixed(1)}%</b></span>
+      <span class="futip">少见 <b>${(c.uncommon*100).toFixed(1)}%</b></span>
+      <span class="futip">普通 <b>${(c.normal*100).toFixed(0)}%</b></span>
+      <span class="futip">常见 <b>${(c.common*100).toFixed(0)}%</b></span>
+      <span class="futip">无产出 <b>${(d.none*100).toFixed(1)}%</b></span>
+    </div>`;
+  }
+  if(tab==='extract'){
+    return `<div class="cnote">${FU_SRC.extract}：没有随机性，产物<b>全部</b>产出。数量写成 <b>×2/4/6</b> 表示「基础 / 进阶 / 量子」三级提取器各自给几个；只有一个数字时三级相同。</div>`;
+  }
+  const m=FUPROD.smelt[fstate.mach];
+  return `<div class="cnote">${esc(m.name)}：每 <b>2</b> 个原料 → <b>1</b> 个主产物。另有 <b>${(m.chance*100).toFixed(0)}%</b> 概率触发副产物判定，命中后每个副产物再<b>各自独立</b>按自身权重（0–100）判定一次，可能同时掉多个。主产物在前，带百分比的为副产物。</div>`;
+}
+const FU_TIER_CN={rarest:'极稀有',rare:'稀有',uncommon:'少见',normal:'普通',common:'常见'};
+const FU_TIER_ORDER=['common','normal','uncommon','rare','rarest'];
+function fuProbChip(o){
+  const avg = o[2] > 0 ? Math.round(1/o[2]) : 0;
+  const tip=`每次投入有 ${fuPct(o[2])} 的概率得到，平均约 ${avg} 次出 1 个`;
+  return `<span class="ing fuc" data-r="${fuTier(o[3])}" title="${esc(tip)}">`
+    +`<b class="fop">${fuPct(o[2])}</b>${fuIcon(o[0])}<span class="nm">${esc(fuName(o[0]))}</span></span>`;
+}
+/* 卡片内只显示物品名（概率靠档位标题 + 悬停），表格仍带百分比 */
+function fuPlainChip(o){
+  const avg = o[2] > 0 ? Math.round(1/o[2]) : 0;
+  const tip=`每次投入有 ${fuPct(o[2])} 的概率得到，平均约 ${avg} 次出 1 个`;
+  return `<span class="ing fuc" data-r="${fuTier(o[3])}" title="${esc(tip)}">`
+    +`${fuIcon(o[0])}<span class="nm">${esc(fuName(o[0]))}</span></span>`;
+}
+/* 把产物按稀有度档分组：常见 → 普通 → 少见 → 稀有 → 极稀有（概率从高到低） */
+function fuTierGroups(outs, chances){
+  const g={};
+  outs.forEach(o=>{ (g[o[3]]=g[o[3]]||[]).push(o); });
+  return FU_TIER_ORDER.filter(t=>g[t]&&g[t].length).map(t=>{
+    const n=g[t].length;
+    const p=((chances[t]||0)*100).toFixed(2).replace(/\.?0+$/,'');   // 18.75% 而不是 19%
+    const same = g[t].every(o=>fuPct(o[2])===fuPct(g[t][0][2]));
+    const hint = n>1 ? `· 档内 ${n} 个${same?' · 各 '+fuPct(g[t][0][2]):''}` : '';
+    return `<div class="fug"><div class="fugt" data-r="${fuTier(t)}">${FU_TIER_CN[t]} <b>${p}%</b>`
+      +`${hint?`<span class="fughint">${hint}</span>`:''}</div>`
+      +`<div class="fugc">${g[t].map(fuPlainChip).join('')}</div></div>`;
+  }).join('');
+}
+/* ---------- 卡片视图 ---------- */
+function fuCardShell(inId,qty,sub,chips,cls){
+  return `<article class="card flat" data-fi="${esc(inId)}">
+    <div class="ico">${fuIcon(inId)}</div>
+    <div class="body">
+      <div class="title"><h3>${esc(fuName(inId))}</h3>${qty?`<span class="qty">${qty}</span>`:''}</div>
+      <div class="sub">${sub}</div>
+      <div class="${cls||'ings'}">${chips}</div>
+    </div></article>`;
+}
+function fuCard(x){
+  const tab=fstate.tab;
+  if(FU_CENT_TABS.includes(tab)){
+    const groups=fuTierGroups(x.o, fuData().chance);
+    const sub=(tab==='cent'||tab==='gas') ? fuMachName() : `${fuMachName()} · ${FU_LABEL[tab]}`;
+    return fuCardShell(x.i,'',sub,groups,'fugroups');
+  }
+  if(tab==='extract'){
+    const ins=Object.keys(x.i).sort(fuCmp);
+    const many=ins.length>1;
+    const sub=`提取实验室 · 可萃取${many?'（投入 '+ins.map(id=>esc(fuName(id))).join(' + ')+'）':''}`;
+    const chips=Object.keys(x.o).sort(fuCmp).map(id=>{
+      const q=x.o[id], same=q[0]===q[1]&&q[1]===q[2];
+      return fuChip(id,'×'+(same?q[0]:q.join('/')),null,null);
+    }).join('');
+    return fuCardShell(ins[0], many?'':'×'+x.i[ins[0]], sub, chips);
+  }
+  const main=fuChip(x.o,'×1',null,null);
+  const bonus=x.b.map(b=>fuChip(b[0],'×1',b[2],'rare')).join('');
+  return fuCardShell(x.i,'×1',`${esc(FUPROD.smelt[fstate.mach].name)} · 可冶炼`, main+bonus);
+}
+/* ---------- 表格视图 ---------- */
+function fuTableRow(x){
+  const tab=fstate.tab;
+  let first, chips, dev;
+  if(FU_CENT_TABS.includes(tab)){
+    first=x.i; dev=fuMachName();
+    chips=x.o.map(fuProbChip).join('');
+  }else if(tab==='extract'){
+    const ins=Object.keys(x.i).sort(fuCmp);
+    first=ins[0]; dev='提取实验室';
+    const pre=ins.length>1?ins.map(id=>`<span class="ing">${fuIcon(id)}<span class="nm">${esc(fuName(id))}</span><em>×${x.i[id]}</em></span>`).join(''):'';
+    chips=(pre?'<span style="color:var(--mut);font-size:12px;margin-right:2px">与</span>'+pre+'<span style="color:var(--mut);font-size:12px;margin:0 2px">→</span>':'')
+      + Object.keys(x.o).sort(fuCmp).map(id=>{
+        const q=x.o[id], same=q[0]===q[1]&&q[1]===q[2];
+        return fuChip(id,'×'+(same?q[0]:q.join('/')),null,null);
+      }).join('');
+  }else{
+    first=x.i; dev=FUPROD.smelt[fstate.mach].name;
+    chips=fuChip(x.o,'×1',null,null)+x.b.map(b=>fuChip(b[0],'×1',b[2],'rare')).join('');
+  }
+  return `<tr><td><div class="pname">${fuIcon(first)}<span>${esc(fuName(first))}</span></div></td>
+    <td><div class="fuing">${chips}</div></td>
+    <td class="pstation">${esc(dev)}${FU_CENT_TABS.includes(tab)?`<div class="fuempty">无产出 ${(fuData().none*100).toFixed(1)}%</div>`:''}</td></tr>`;
+}
+/* ---------- 取数 / 渲染 ---------- */
+function fuRows(){
+  const q=fstate.q.trim().toLowerCase(), tab=fstate.tab;
+  let rows;
+  if(FU_CENT_TABS.includes(tab)){
+    rows=fuData().rows.filter(r=>!q || fuMatch(r.i,q) || r.o.some(x=>fuMatch(x[0],q)));
+  }else if(tab==='extract'){
+    rows=FUPROD.extract.filter(r=>!q || Object.keys(r.i).some(id=>fuMatch(id,q)) || Object.keys(r.o).some(id=>fuMatch(id,q)));
+  }else{
+    rows=FUPROD.smelt[fstate.mach].rows.filter(r=>!q || fuMatch(r.i,q) || fuMatch(r.o,q) || r.b.some(x=>fuMatch(x[0],q)));
+  }
+  return rows.sort((a,b)=>{
+    const ka=typeof a.i==='object'?Object.keys(a.i)[0]:a.i;
+    const kb=typeof b.i==='object'?Object.keys(b.i)[0]:b.i;
+    return fuCmp(ka,kb);
+  });
+}
+function fuTotal(){
+  if(fstate.tab==='smelt'||fstate.tab==='cent'||fstate.tab==='gas') return fuData().rows.length;
+  if(fstate.tab==='extract') return FUPROD.extract.length;
+  return FUPROD[fstate.tab].rows.length;
+}
+function renderFu(reset){
+  if(!FUPROD){ $('#fcontent').innerHTML='<div class="empty">正在载入生产数据…</div>'; return; }
+  if(reset) fstate.shown=0;
+  const all=fuRows();
+  const batch=all.slice(fstate.shown, fstate.shown+PAGE_F);
+  fstate.shown+=batch.length;
+  if(fstate.view==='table'){
+    let tb=document.getElementById('futbody');
+    if(reset||!tb){
+      $('#fcontent').innerHTML=fuLegend(fstate.tab)
+        +`<table class="tbl futbl"><thead><tr><th style="width:215px">投入物</th><th>产物</th><th style="width:150px">设备</th></tr></thead><tbody id="futbody"></tbody></table>`;
+      tb=document.getElementById('futbody');
+    }
+    if(batch.length) tb.insertAdjacentHTML('beforeend',batch.map(fuTableRow).join(''));
+  }else{
+    const html=batch.map(fuCard).join('');
+    if(reset) $('#fcontent').innerHTML=fuLegend(fstate.tab)+(html?`<div class="grid">${html}</div>`:'');
+    else if(html) {
+      const g=document.querySelector('#fcontent .grid');
+      if(g) g.insertAdjacentHTML('beforeend',html);
+    }
+  }
+  if(reset && !all.length) $('#fcontent').innerHTML=fuLegend(fstate.tab)+'<div class="empty"><div class="big">▤</div>没有匹配的条目</div>';
+  const total=fuTotal();
+  const unit=fstate.tab==='extract'?'条配方':(fstate.tab==='smelt'?'种原料':'种投入物');
+  $('#fcount').innerHTML=(fstate.q?`筛出 <b>${all.length}</b> / ${total} ${unit}`:`共 <b>${total}</b> ${unit}`);
+  let more=document.getElementById('fmore');
+  if(fstate.shown<all.length){
+    if(!more){
+      more=document.createElement('button'); more.id='fmore'; more.className='morep';
+      more.onclick=()=>renderFu(false); $('#fcontent').after(more);
+    }
+    more.textContent=`加载更多（还有 ${all.length-fstate.shown} 种）`;
+  }else if(more) more.remove();
+}
+function buildFuTabs(){
+  $('#ftabs').innerHTML=FU_TABS.map(([v,l])=>`<button class="pchip${fstate.tab===v?' on':''}" data-ft="${v}">${l}</button>`).join('');
+  $('#ftabs').querySelectorAll('[data-ft]').forEach(b=>b.onclick=()=>{
+    fstate.tab=b.dataset.ft; fstate.shown=0; buildFuTabs(); buildFuMach(); renderFu(true);
+  });
+}
+function buildFuMach(){
+  const box=$('#fmach');
+  if(!FUPROD){ box.innerHTML=''; return; }
+  if(fstate.tab==='smelt'){
+    box.innerHTML='<div class="fumach">'+FUPROD.smelt.map((m,i)=>
+      `<button class="pchip${fstate.mach===i?' on':''}" data-fm="${i}">${esc(m.name)} · 副产物 ${(m.chance*100).toFixed(0)}%</button>`).join('')+'</div>';
+    box.querySelectorAll('[data-fm]').forEach(b=>b.onclick=()=>{
+      fstate.mach=+b.dataset.fm; fstate.shown=0; buildFuMach(); renderFu(true);
+    });
+    return;
+  }
+  if(fstate.tab==='cent'){
+    const list=FUPROD.cent||[];
+    if(fstate.cmach>=list.length) fstate.cmach=0;
+    box.innerHTML='<div class="fumach">'+list.map((m,i)=>
+      `<button class="pchip${fstate.cmach===i?' on':''}" data-cm="${i}">${esc(m.name)} · 无产出 ${(m.none*100).toFixed(1)}%</button>`).join('')+'</div>';
+    box.querySelectorAll('[data-cm]').forEach(b=>b.onclick=()=>{
+      fstate.cmach=+b.dataset.cm; fstate.shown=0; buildFuMach(); renderFu(true);
+    });
+    return;
+  }
+  box.innerHTML='';
+}
+function buildFuView(){
+  $('#fviewseg').querySelectorAll('[data-fv]').forEach(b=>{
+    b.classList.toggle('on', b.dataset.fv===fstate.view);
+    b.onclick=()=>{ fstate.view=b.dataset.fv; fstate.shown=0; buildFuView(); renderFu(true); };
+  });
+}
+function ensureFuprod(){
+  if(FUPROD){ renderFu(true); return; }
+  $('#fcontent').innerHTML='<div class="empty">正在载入生产数据…</div>';
+  loadPart('fuprod','data/fuprod.js').then(ok=>{
+    if(!ok){ $('#fcontent').innerHTML='<div class="empty">生产数据加载失败，刷新重试</div>'; return; }
+    FUPROD=D.fuprod||{}; PART.fuprod=true; buildFuMach(); renderFu(true);
+  });
+}
+$('#fq').oninput=e=>{ fstate.q=e.target.value; renderFu(true); };
 
 function renderAnomalies(reset){
   if(reset) astate.shown=0;
@@ -3163,7 +3464,7 @@ render=function(reset){ _r(reset); writeHash(); };
 writeHash();
 
 /* ---------- 拆分版：图标、星球与怪物数据异步到达 ---------- */
-const PART={icons:!!D.icons, world:(D.planets&&D.monsters)?true:false};
+const PART={icons:!!D.icons, world:(D.planets&&D.monsters)?true:false, fuprod:!!D.fuprod};
 function loadPart(name,url){
   return new Promise(res=>{
     const s=document.createElement('script');
