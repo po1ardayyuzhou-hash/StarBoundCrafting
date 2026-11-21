@@ -640,6 +640,9 @@ footer b{color:var(--txt2);font-weight:600}
   .pop{position:fixed;left:8px;right:8px;width:auto;top:auto;bottom:8px;max-height:70vh}
   .tbl .pstation{display:none}
 }
+/* ---------- 全局视图切换（表格 / 卡片） ---------- */
+/* 统一为整行卡片 */
+.grid,.pgrid,.sgrid{grid-template-columns:1fr!important}
 /* ---------- FU 生产 ---------- */
 .card.flat{cursor:default}
 .card.flat:hover{transform:none;border-color:var(--line);box-shadow:var(--shadow)}
@@ -689,7 +692,6 @@ footer b{color:var(--txt2);font-weight:600}
       <button data-p="items" class="on">物品 / 配方</button>
       <button data-p="planets">星球百科</button>
       <button data-p="monsters">怪物图鉴</button>
-      <button data-p="boss">Boss 图鉴</button>
       <button data-p="merchants">商人</button>
       <button data-p="crew">船员</button>
       <button data-p="epp">防护背包 / 模块</button>
@@ -724,10 +726,6 @@ footer b{color:var(--txt2);font-weight:600}
 
 <div class="toolbar" id="toolbar">
   <span class="count" id="count"></span>
-  <div class="seg" id="viewseg">
-    <button data-v="card" class="on">卡片</button>
-    <button data-v="table">表格</button>
-  </div>
   <span class="hint">空格分隔多关键词 · <kbd>/</kbd> 搜索 · <kbd>Esc</kbd> 关闭 · 点击材料可反查</span>
 </div>
 
@@ -807,15 +805,6 @@ footer b{color:var(--txt2);font-weight:600}
   <div class="pgrid" id="egrid"></div>
 </main>
 
-<main id="osview" hidden>
-  <div class="cnote">收录<b>交战时会占据屏幕底部血条的 Boss</b>：本体剧情 Boss、远古守护者，以及 FU / Arcana 等模组中带专属血条的强敌（共 <b id="osn">31</b> 个）。<b>只收真正的 Boss</b>——带血条的普通小怪、无人机与 Boss 召唤出的仆从归在「怪物图鉴」，不在这里重复。数据取自怪物配置（血量 / 防御 / 接触伤害 / 伤害倍率 / 击退抗性）、动画状态（攻击动作）与游戏内典籍（背景故事）。<b>没写过典籍的 Boss 会标注「暂无记载」</b>，只列战斗档案。</div>
-  <div class="pfilter">
-    <input id="osq" type="search" autocomplete="off" spellcheck="false" placeholder="搜索 Boss 名 / 攻击方式（如 光束 / 召唤）">
-    <div class="pchips" id="ostabs"></div>
-    <span class="pcount" id="oscount"></span>
-  </div>
-  <div class="pgrid" id="osgrid"></div>
-</main>
 
 <main id="bview" hidden>
   <div class="pfilter">
@@ -840,10 +829,6 @@ footer b{color:var(--txt2);font-weight:600}
   <div class="pfilter">
     <input id="fq" type="search" autocomplete="off" spellcheck="false" placeholder="搜索投入物 / 产物（如 铁矿石 / 硅 / ironore）">
     <div class="pchips" id="ftabs"></div>
-    <div class="seg" id="fviewseg">
-      <button data-fv="card" class="on">卡片</button>
-      <button data-fv="table">表格</button>
-    </div>
     <span class="pcount" id="fcount"></span>
   </div>
   <div id="fmach"></div>
@@ -2187,7 +2172,7 @@ window.addEventListener('resize',closeEfPop);
    名称 / 掉落 / 出没星球复用 monsters 表（按 id 关联） */
 const osst={q:'',src:'',shown:0};
 const PAGE_O=18;
-const osgrid=$('#osgrid'), oscount=$('#oscount');
+const osgrid=$('#osgrid')||document.createElement('div'), oscount=$('#oscount')||document.createElement('span');
 
 function bossMon(id){ return MON.find(m=>m[0]===id) || null; }
 /* 同名 Boss（如四种远古守护者）用 id 里的元素词区分 */
@@ -2356,7 +2341,7 @@ function openBoss(id){
   drawer.setAttribute('aria-hidden','false');
   drawer.scrollTop=0;
 }
-$('#osq').oninput=e=>{ osst.q=e.target.value; renderBoss(true); };
+const osqEl=$('#osq'); if(osqEl) osqEl.oninput=e=>{ osst.q=e.target.value; renderBoss(true); };
 osgrid.onclick=e=>{
   const card=e.target.closest('[data-b]');
   if(card) openBoss(card.dataset.b);
@@ -2597,7 +2582,6 @@ function setPage(pg){
   $('#bview').hidden = pg!=='brew';
   $('#cview').hidden = pg!=='crew';
   $('#eview').hidden = pg!=='epp';
-  $('#osview').hidden = pg!=='boss';
   $('#stview').hidden = pg!=='status';
   $('#fview').hidden = pg!=='fuprod';
   // 物品侧的搜索框、模式切换、排序与筛选栏，在星球页一并收起
@@ -2611,9 +2595,8 @@ function setPage(pg){
   if(pg==='brew'){ buildBrewTabs(); renderBrew(true); }
   if(pg==='crew'){ buildCrewTabs(); renderCrew(true); }
   if(pg==='epp'){ buildEppTabs(); renderEpp(true); }
-  if(pg==='boss'){ buildBossTabs(); renderBoss(true); }
   if(pg==='status'){ buildStatusTabs(); renderStatus(true); }
-  if(pg==='fuprod'){ buildFuTabs(); buildFuMach(); buildFuView(); ensureFuprod(); }
+  if(pg==='fuprod'){ buildFuTabs(); buildFuMach(); ensureFuprod(); }
 }
 document.querySelectorAll('#pagebar button').forEach(b=>b.onclick=()=>setPage(b.dataset.p));
 pgrid.addEventListener('click',e=>{
@@ -3150,12 +3133,6 @@ function buildFuMach(){
   }
   box.innerHTML='';
 }
-function buildFuView(){
-  $('#fviewseg').querySelectorAll('[data-fv]').forEach(b=>{
-    b.classList.toggle('on', b.dataset.fv===fstate.view);
-    b.onclick=()=>{ fstate.view=b.dataset.fv; fstate.shown=0; buildFuView(); renderFu(true); };
-  });
-}
 function ensureFuprod(){
   if(FUPROD){ renderFu(true); return; }
   $('#fcontent').innerHTML='<div class="empty">正在载入生产数据…</div>';
@@ -3398,11 +3375,6 @@ document.querySelectorAll('#mode button').forEach(b=>b.onclick=()=>{
   updateSortOptions();
   updateFilterBtns(); refreshPops(); render(true);
 });
-document.querySelectorAll('#viewseg button').forEach(b=>b.onclick=()=>{
-  state.view=b.dataset.v;
-  document.querySelectorAll('#viewseg button').forEach(x=>x.classList.toggle('on',x===b));
-  render(true);
-});
 document.addEventListener('keydown',e=>{
   if(e.key==='/'&&document.activeElement!==q){ e.preventDefault(); q.focus(); q.select(); }
   if(e.key==='Escape'){ closeDrawer(); closePops(); }
@@ -3520,7 +3492,6 @@ function applyPart(name){
     if(state.page==='brew'){ buildBrewTabs(); renderBrew(true); }
     if(state.page==='crew'){ buildCrewTabs(); renderCrew(true); }
     if(state.page==='epp'){ buildEppTabs(); renderEpp(true); }
-    if(state.page==='boss'){ buildBossTabs(); renderBoss(true); }
     if(state.page==='status'){ buildStatusTabs(); renderStatus(true); }
   }
 }
