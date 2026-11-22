@@ -641,6 +641,13 @@ footer b{color:var(--txt2);font-weight:600}
   .tbl .pstation{display:none}
 }
 /* ---------- 全局视图切换（表格 / 卡片） ---------- */
+/* FU 生产：一行四张卡 */
+.grid.fugrid{grid-template-columns:repeat(4,minmax(0,1fr))!important;align-items:start}
+@media(max-width:1180px){.grid.fugrid{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(max-width:900px){.grid.fugrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:620px){.grid.fugrid{grid-template-columns:1fr!important}}
+/* 表格模式容器 */
+.tblmode{display:block!important}
 /* 统一为整行卡片 */
 .grid,.pgrid,.sgrid{grid-template-columns:1fr!important}
 /* ---------- FU 生产 ---------- */
@@ -663,6 +670,8 @@ footer b{color:var(--txt2);font-weight:600}
 .fuc[data-r="uncommon"] .fop{color:var(--r-uncommon)}
 .fuc[data-r="common"] .fop{color:var(--txt2)}
 .fuc .nm{max-width:130px}
+.fuc[data-fitem]{cursor:pointer}
+.fuc[data-fitem]:hover{border-color:var(--accent);background:var(--accent-soft)}
 .fuempty{font-size:12px;color:var(--mut)}
 /* 卡片内按稀有度分档 */
 .fugroups{display:flex;flex-direction:column;gap:8px;margin-top:8px}
@@ -972,7 +981,7 @@ const DATA_IDX=[], DATA_ITEMS=[];
 IT.forEach((it,i)=>{ if(!NO_DATA.has(i)){ DATA_IDX.push(i); DATA_ITEMS.push(it); } });
 
 /* ---------- 状态 ---------- */
-const state={q:'',mode:'recipe',st:new Set(),cat:new Set(),rar:new Set(),src:new Set(),acq:new Set(),sort:'name',view:'card',page:'items'};
+const state={q:'',mode:'recipe',st:new Set(),cat:new Set(),rar:new Set(),src:new Set(),acq:new Set(),sort:'name',view:'table',page:'items'};
 
 /* ---------- 计数 ---------- */
 function countBy(list,keyf){
@@ -2087,9 +2096,9 @@ function renderEpp(reset){
   const all=eppList();
   const batch=all.slice(est.shown, est.shown+PAGE_E);
   est.shown+=batch.length;
-  const html=batch.map(eppCard).join('');
-  if(reset) egrid.innerHTML=html || `<div class="empty" style="grid-column:1/-1"><div class="big">🎒</div>没有匹配的背包 / 模块</div>`;
-  else egrid.insertAdjacentHTML('beforeend', html);
+  const html=batch.map(eppRow).join('');
+  if(reset){ if(batch.length) tblStart(egrid, HEAD_EPP, html); else egrid.innerHTML='<div class="empty"><div class="big">🎒</div>没有匹配的背包 / 模块</div>'; }
+  else tblAdd(egrid, html);
   const nP=(EPP.packs||[]).length, nA=(EPP.augs||[]).length;
   const nR=(EPP.packs||[]).concat(EPP.augs||[]).filter(i=>(madeBy.get(i)||[]).length).length;
   ecount.innerHTML=`共 <b>${nP+nA}</b> 件（背包 ${nP} · 模块 ${nA}）· ${nR} 件可合成`;
@@ -2656,9 +2665,9 @@ function renderMerchants(reset){
   const all=merList();
   const batch=all.slice(rstate.shown, rstate.shown+PAGE_R);
   rstate.shown+=batch.length;
-  if(reset) rgrid.innerHTML=batch.map(merCard).join('') ||
-    `<div class="empty" style="grid-column:1/-1"><div class="big">🧺</div>没有匹配的商人</div>`;
-  else rgrid.insertAdjacentHTML('beforeend', batch.map(merCard).join(''));
+  const mhtml=batch.map(merRow).join('');
+  if(reset){ if(batch.length) tblStart(rgrid, HEAD_MER, mhtml); else rgrid.innerHTML='<div class="empty"><div class="big">🧺</div>没有匹配的商人</div>'; }
+  else tblAdd(rgrid, mhtml);
   rcount.innerHTML=`共 <b>${all.length}</b> 个商人 · 商品池为该商人可能出售的全部物品`;
   let more=document.getElementById('rmore');
   if(rstate.shown<all.length){
@@ -2864,14 +2873,51 @@ function stCard(e){
     </div>
   </article>`;
 }
+/* ---------- 通用表格 ---------- */
+function tblStart(el, head, rows){
+  el.classList.add('tblmode');
+  el.innerHTML=`<table class="tbl"><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+}
+function tblAdd(el, rows){ const tb=el.querySelector('tbody'); if(tb) tb.insertAdjacentHTML('beforeend', rows); }
+const HEAD_ST='<tr><th style="width:230px">状态</th><th style="width:90px">类型</th><th style="width:130px">时长</th><th style="width:110px">来源</th><th>效果</th></tr>';
+const HEAD_EPP='<tr><th style="width:250px">名称</th><th style="width:110px">类型</th><th>防护效果</th><th style="width:170px">获取</th></tr>';
+const HEAD_MER='<tr><th style="width:220px">商人</th><th style="width:110px">来源</th><th style="width:100px">商品</th><th style="width:100px">在售</th><th>示例商品</th></tr>';
+function stRow(e){
+  const [id,name,dur,kind,icon,src,path,detail,nums,desc]=e;
+  const k=STK[kind]||STK.n;
+  const ic=icon?`<img src="data:image/png;base64,${icon}" alt="">`:`<span class="ph" style="width:22px;height:22px;border-radius:5px;display:grid;place-items:center;background:var(--bg2);font-size:11px">?</span>`;
+  const txt=[detail,nums,desc].filter(Boolean).join(' · ');
+  return `<tr><td><div class="pname">${ic}<span>${esc(name)}</span></div></td>`
+    +`<td><span class="atag" style="background:var(--bg2)">${k.t}</span></td>`
+    +`<td>${esc(stDur(dur))}</td><td>${esc(SR[src]||'本体')}</td>`
+    +`<td class="adesc">${esc(txt.slice(0,180))}</td></tr>`;
+}
+function eppRow(o){
+  const i=o.i, it=IT[i]||[];
+  const fx=eppFx(i);
+  const rec=madeBy.get(i)||[];
+  const tail=rec.length?`可合成 · ${rec.length} 种配方`:(acqOf(i)?'无配方 · 有获取途径':'无配方 · 暂无来源');
+  return `<tr data-i="${i}"><td><div class="pname">${iconHTML(i)}<span>${esc(it[1]||it[0])}</span></div></td>`
+    +`<td>${o.cat==='pack'?'防护背包':'EPP 模块'}</td>`
+    +`<td>${fx.length?fx.map(efChip).join(''):'<span class="mut">无防护效果</span>'}</td>`
+    +`<td class="adesc">${esc(tail)}</td></tr>`;
+}
+function merRow(m){
+  const [id,name,src,num,,,items]=m;
+  const pre=items.slice(0,4).map(x=>x[1]).join(' · ');
+  return `<tr data-rid="${esc(id)}"><td><div class="pname"><span class="ph" style="width:22px;height:22px;border-radius:5px;display:grid;place-items:center;background:var(--bg2);font-size:11px">${esc((name||'?').slice(0,1))}</span><span>${esc(name)}</span></div></td>`
+    +`<td>${esc(SR[src]||'模组')}</td><td>${items.length}</td><td>${num||'—'}</td>`
+    +`<td class="adesc">${esc(pre)}${items.length>4?` 等 ${items.length} 种`:''}</td></tr>`;
+}
+
 function renderStatus(reset){
   if(reset) ststate.shown=0;
   const all=stList();
   const batch=all.slice(ststate.shown, ststate.shown+PAGE_S);
   ststate.shown+=batch.length;
-  const html=batch.map(stCard).join('');
-  if(reset) stgrid.innerHTML=html || `<div class="empty" style="grid-column:1/-1"><div class="big">✦</div>没有匹配的状态效果</div>`;
-  else stgrid.insertAdjacentHTML('beforeend', html);
+  const html=batch.map(stRow).join('');
+  if(reset){ if(batch.length) tblStart(stgrid, HEAD_ST, html); else stgrid.innerHTML='<div class="empty"><div class="big">✦</div>没有匹配的状态效果</div>'; }
+  else tblAdd(stgrid, html);
   const c=stCounts();
   stcount.innerHTML=ststate.q||ststate.kind
     ? `筛出 <b>${all.length}</b> / ${c.all} 种`
@@ -2929,7 +2975,7 @@ function fuMatch(id,q){
 /* 产物芯片：与配方页的 .ing 同一套样式，概率沿用 .opp 权重徽标 */
 function fuChip(id,qty,pct,tier){
   const r=tier?` data-r="${fuTier(tier)}"`:'';
-  return `<span class="ing"${r} title="${esc(id)}">${fuIcon(id)}<span class="nm">${esc(fuName(id))}</span><em>${qty}</em>${pct!=null?`<i class="opp">${fuPct(pct)}</i>`:''}</span>`;
+  return `<span class="ing"${r} data-fitem="${esc(id)}" title="${esc(id)}">${fuIcon(id)}<span class="nm">${esc(fuName(id))}</span><em>${qty}</em>${pct!=null?`<i class="opp">${fuPct(pct)}</i>`:''}</span>`;
 }
 function fuData(){
   const t=fstate.tab;
@@ -2968,14 +3014,14 @@ const FU_TIER_ORDER=['common','normal','uncommon','rare','rarest'];
 function fuProbChip(o){
   const avg = o[2] > 0 ? Math.round(1/o[2]) : 0;
   const tip=`每次投入有 ${fuPct(o[2])} 的概率得到，平均约 ${avg} 次出 1 个`;
-  return `<span class="ing fuc" data-r="${fuTier(o[3])}" title="${esc(tip)}">`
+  return `<span class="ing fuc" data-r="${fuTier(o[3])}" data-fitem="${esc(o[0])}" title="${esc(tip)}">`
     +`<b class="fop">${fuPct(o[2])}</b>${fuIcon(o[0])}<span class="nm">${esc(fuName(o[0]))}</span></span>`;
 }
 /* 卡片内只显示物品名（概率靠档位标题 + 悬停），表格仍带百分比 */
 function fuPlainChip(o){
   const avg = o[2] > 0 ? Math.round(1/o[2]) : 0;
   const tip=`每次投入有 ${fuPct(o[2])} 的概率得到，平均约 ${avg} 次出 1 个`;
-  return `<span class="ing fuc" data-r="${fuTier(o[3])}" title="${esc(tip)}">`
+  return `<span class="ing fuc" data-r="${fuTier(o[3])}" data-fitem="${esc(o[0])}" title="${esc(tip)}">`
     +`${fuIcon(o[0])}<span class="nm">${esc(fuName(o[0]))}</span></span>`;
 }
 /* 把产物按稀有度档分组：常见 → 普通 → 少见 → 稀有 → 极稀有（概率从高到低） */
@@ -3085,7 +3131,7 @@ function renderFu(reset){
     if(batch.length) tb.insertAdjacentHTML('beforeend',batch.map(fuTableRow).join(''));
   }else{
     const html=batch.map(fuCard).join('');
-    if(reset) $('#fcontent').innerHTML=fuLegend(fstate.tab)+(html?`<div class="grid">${html}</div>`:'');
+    if(reset) $('#fcontent').innerHTML=fuLegend(fstate.tab)+(html?`<div class="grid fugrid">${html}</div>`:'');
     else if(html) {
       const g=document.querySelector('#fcontent .grid');
       if(g) g.insertAdjacentHTML('beforeend',html);
@@ -3133,6 +3179,24 @@ function buildFuMach(){
   }
   box.innerHTML='';
 }
+/* 点产物 → 跳物品/配方表并筛出该物品 */
+function gotoItem(id){
+  const k=IX[id];
+  setPage('items');
+  if(k==null){ return; }
+  state.mode='item';
+  document.querySelectorAll('#mode button').forEach(x=>x.classList.toggle('on',x.dataset.m==='item'));
+  const nm=IT[k][1]||id;
+  q.value=nm; state.q=nm; clearBtn.style.display='block';
+  updateSortOptions(); updateFilterBtns(); refreshPops(); render(true);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+$('#fcontent').addEventListener('click',e=>{
+  const c=e.target.closest('[data-fitem]');
+  if(!c) return;
+  e.preventDefault(); e.stopPropagation();
+  gotoItem(c.dataset.fitem);
+});
 function ensureFuprod(){
   if(FUPROD){ renderFu(true); return; }
   $('#fcontent').innerHTML='<div class="empty">正在载入生产数据…</div>';
