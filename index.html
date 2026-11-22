@@ -681,6 +681,16 @@ footer b{color:var(--txt2);font-weight:600}
 .fugt b{color:var(--txt2);font-weight:600;font-variant-numeric:tabular-nums}
 .fugt .fughint{font-size:10.5px;color:var(--mut);opacity:.9}
 .fugc{display:flex;flex-wrap:wrap;gap:5px}
+/* ---------- 群系图鉴 ---------- */
+.bigrid{display:grid;gap:11px;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));align-items:start}
+.bicard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px}
+.bihd{display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap}
+.bihd h3{margin:0;font-size:14px;font-weight:600}
+.bikind{font-size:11px;padding:1px 7px;border-radius:6px;background:var(--blue-soft);color:var(--blue)}
+.bisrc{font-size:11px;color:var(--mut)}
+.birow{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;align-items:center}
+.bilab{font-size:11px;color:var(--mut);margin-right:2px;flex:0 0 auto}
+.bifoot{margin-top:8px;font-size:11.5px;color:var(--mut);display:flex;gap:10px;flex-wrap:wrap}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -700,6 +710,7 @@ footer b{color:var(--txt2);font-weight:600}
     <div class="pagebar" id="pagebar">
       <button data-p="items" class="on">物品 / 配方</button>
       <button data-p="planets">星球百科</button>
+      <button data-p="biomes">群系图鉴</button>
       <button data-p="monsters">怪物图鉴</button>
       <button data-p="merchants">商人</button>
       <button data-p="crew">船员</button>
@@ -854,6 +865,16 @@ footer b{color:var(--txt2);font-weight:600}
   <div class="pgrid" id="agrid"></div>
 </main>
 
+
+<main id="biview" hidden>
+  <div class="cnote">收录本作与模组里全部<b>群系</b>（地表 / 地下 / 太空 / 地心 / 大气）：列出主方块与次方块、特产矿石、天气数量，以及它能出现在多少种星球类型上。方块名可直接搜，点击方块可查合成配方。</div>
+  <div class="pfilter">
+    <input id="biq" type="search" autocomplete="off" spellcheck="false" placeholder="搜索群系名 / 方块（如 森林 / 雪 / 岩浆）">
+    <div class="pchips" id="bitabs"></div>
+    <span class="pcount" id="bicount"></span>
+  </div>
+  <div class="bigrid" id="bigrid"></div>
+</main>
 <main id="lview">
   <div id="list" class="grid"></div>
   <div id="morewrap"></div>
@@ -2585,6 +2606,7 @@ function setPage(pg){
   $('#toolbar').hidden = !isItems;
   $('#lview').hidden = !isItems;
   $('#pview').hidden = pg!=='planets';
+  $('#biview').hidden = pg!=='biomes';
   $('#mview').hidden = pg!=='monsters';
   $('#rvview').hidden = pg!=='merchants';
   $('#avview').hidden = pg!=='anomalies';
@@ -2598,6 +2620,7 @@ function setPage(pg){
   $('#filters').hidden = !isItems;
   $('#active').hidden = !isItems;
   if(pg==='planets'){ buildPlanetTabs(); renderPlanets(true); }
+  if(pg==='biomes'){ buildBiTabs(); renderBiomes(true); }
   if(pg==='monsters'){ buildMonsterTabs(); renderMonsters(true); }
   if(pg==='merchants'){ buildMerchantTabs(); renderMerchants(true); }
   if(pg==='anomalies'){ buildAnoTabs(); renderAnomalies(true); }
@@ -3499,6 +3522,82 @@ const _r=render; let lastHash='';
 render=function(reset){ _r(reset); writeHash(); };
 writeHash();
 
+/* ---------- 群系图鉴 ---------- */
+let BI=D.biomes||[];
+const bistate={q:'',kind:'',src:'',shown:0};
+const PAGE_BI=30;
+function biPretty(id){
+  let t=String(id).replace(/_/g,' ').replace(/([a-z])([A-Z])/g,'$1 $2');
+  return t.charAt(0).toUpperCase()+t.slice(1);
+}
+function biName(id){
+  const bn=D.bnames&&D.bnames[id];      /* matitem / material 类方块，物品表大多没收录 */
+  if(bn) return bn;
+  const k=IX[id];
+  return k==null?biPretty(id):(IT[k][1]||id);
+}
+function biBlockChip(id,re){
+  const k=IX[id];
+  const nm=biName(id);
+  /* 没有图标（材质类方块基本都没收录图标）时用名称首字占位，比问号好看 */
+  const ph=`<span class="ph" style="width:17px;height:17px;border-radius:4px;display:grid;place-items:center;background:var(--bg2);font-size:9px;color:var(--mut)">${esc(nm.slice(0,1))}</span>`;
+  const ico=k!=null?iconHTML(k):ph;
+  return `<span class="ing"${k!=null?` data-i="${k}"`:''} title="${esc(id)}">${ico}<span class="nm">${re?nm.replace(re,m=>'<mark>'+m+'</mark>'):esc(nm)}</span></span>`;
+}
+function biMatch(b,q,re){
+  if(!q) return true;
+  const hay=[b.n,b.i,b.mb].concat(b.sb||[]).concat(b.o||[]).map(x=>biName(x)).join(' ').toLowerCase();
+  return hay.includes(q);
+}
+function biList(){
+  const q=bistate.q.trim().toLowerCase();
+  return BI.filter(b=>(!bistate.kind||b.k===bistate.kind) && (!bistate.src||b.s===bistate.src) && biMatch(b,q));
+}
+function biCard(b,re){
+  const blocks=(b.sb||[]).map(x=>biBlockChip(x,re)).join('');
+  const ores=(b.o||[]).map(x=>biBlockChip(x,re)).join('');
+  return `<article class="bicard" data-bid="${esc(b.i)}">
+    <div class="bihd"><h3>${esc(b.n===b.i?biPretty(b.i):b.n)}</h3><span class="bikind">${esc(b.k)}</span><span class="bisrc">${esc(b.s)}</span></div>
+    ${b.mb?`<div class="birow"><span class="bilab">主方块</span>${biBlockChip(b.mb,re)}</div>`:''}
+    ${blocks?`<div class="birow"><span class="bilab">次方块</span>${blocks}</div>`:''}
+    ${ores?`<div class="birow"><span class="bilab">矿石</span>${ores}</div>`:''}
+    <div class="bifoot"><span>${b.p?`出现在 <b>${b.p}</b> 种星球类型`:'未直接绑定星球类型'}</span>${b.w?`<span>天气 ${b.w} 种</span>`:''}</div>
+  </article>`;
+}
+function renderBiomes(reset){
+  if(!BI.length){ $('#bigrid').innerHTML='<div class="empty">正在载入群系数据…</div>'; return; }
+  if(reset) bistate.shown=0;
+  const all=biList();
+  const batch=all.slice(bistate.shown, bistate.shown+PAGE_BI);
+  bistate.shown+=batch.length;
+  const re=curRegex(bistate.q);
+  const html=batch.map(b=>biCard(b,re)).join('');
+  if(reset) $('#bigrid').innerHTML=html || '<div class="empty" style="grid-column:1/-1"><div class="big">🌿</div>没有匹配的群系</div>';
+  else $('#bigrid').insertAdjacentHTML('beforeend', html);
+  $('#bicount').innerHTML=bistate.q||bistate.kind||bistate.src
+    ? `筛出 <b>${all.length}</b> / ${BI.length} 个群系` : `共 <b>${BI.length}</b> 个群系`;
+  let more=document.getElementById('bimore');
+  if(bistate.shown<all.length){
+    if(!more){ more=document.createElement('button'); more.id='bimore'; more.className='morep'; more.onclick=()=>renderBiomes(false); $('#bigrid').after(more); }
+    more.textContent=`加载更多（还有 ${all.length-bistate.shown} 个）`;
+  }else if(more) more.remove();
+}
+function buildBiTabs(){
+  const kinds=[...new Set(BI.map(b=>b.k))];
+  const mk=(v,l)=>`<button class="pchip${bistate.kind===v?' on':''}" data-bik="${esc(v)}">${esc(l)}</button>`;
+  $('#bitabs').innerHTML=mk('','全部')+kinds.map(k=>mk(k,k)).join('');
+  $('#bitabs').querySelectorAll('[data-bik]').forEach(b=>b.onclick=()=>{
+    bistate.kind=b.dataset.bik; buildBiTabs(); renderBiomes(true);
+  });
+}
+$('#biq') && ($('#biq').oninput=e=>{ bistate.q=e.target.value; renderBiomes(true); });
+$('#bigrid') && $('#bigrid').addEventListener('click',e=>{
+  const ing=e.target.closest('.ing[data-i]');
+  if(!ing) return;
+  e.stopPropagation();
+  openDrawer(+ing.dataset.i);
+});
+
 /* ---------- 拆分版：图标、星球与怪物数据异步到达 ---------- */
 const PART={icons:!!D.icons, world:(D.planets&&D.monsters)?true:false, fuprod:!!D.fuprod};
 function loadPart(name,url){
@@ -3543,13 +3642,14 @@ function applyPart(name){
     if(state.page==='planets') renderPlanets(true);
     if(state.page==='monsters') renderMonsters(true);
   }else{
-    PL=D.planets||[]; MON=D.monsters||[]; MER=D.merchants||[]; WI=D.weatherInfo||{};
+    PL=D.planets||[]; MON=D.monsters||[]; MER=D.merchants||[]; WI=D.weatherInfo||{}; BI=D.biomes||[];
     ANO=D.anomalies||[]; AIC=D.aIcons||[]; BREW=D.brew||{}; LC=D.liqCollect||{}; CREW=D.crew||{roles:[],fx:{}};
     EPP=D.epp||{packs:[],augs:[],fx:{}};
     BOSS=D.boss||{list:[],meta:{}};
     STAT=D.status||{list:[],n:{}};
     const stnEl=document.getElementById('stn'); if(stnEl) stnEl.textContent=(STAT.n||{}).all||0;
     if(state.page==='planets'){ buildPlanetTabs(); renderPlanets(true); }
+    if(state.page==='biomes'){ buildBiTabs(); renderBiomes(true); }
     if(state.page==='monsters'){ buildMonsterTabs(); renderMonsters(true); }
     if(state.page==='merchants'){ buildMerchantTabs(); renderMerchants(true); }
     if(state.page==='anomalies'){ buildAnoTabs(); renderAnomalies(true); }
